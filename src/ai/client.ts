@@ -14,7 +14,6 @@ export interface SavedAiSettings {
 }
 
 const SETTINGS_KEY = 'nila-ai-settings-v1';
-const API_KEY_KEY = 'nila-ai-api-key-v1';
 
 export const AI_DEFAULTS: Record<AiProvider, Omit<AiConnection, 'apiKey'>> = {
   ollama: { provider: 'ollama', model: 'qwen3-coder:480b-cloud' },
@@ -33,15 +32,6 @@ export function loadAiSettings(): SavedAiSettings {
 
 export function saveAiSettings(settings: SavedAiSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-export function loadSessionApiKey() {
-  return sessionStorage.getItem(API_KEY_KEY) ?? '';
-}
-
-export function saveSessionApiKey(value: string) {
-  if (value) sessionStorage.setItem(API_KEY_KEY, value);
-  else sessionStorage.removeItem(API_KEY_KEY);
 }
 
 function cleanBaseUrl(value: string | undefined) {
