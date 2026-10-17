@@ -15,6 +15,8 @@ const EXTENSIONS: Record<string, AssetKind> = {
 };
 
 export const ASSET_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.woff2,.woff,.ttf,.otf';
+export const IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif';
+export const VIDEO_ACCEPT = '.mp4,.webm';
 
 function extensionOf(name: string) {
   return name.split('.').pop()?.toLowerCase() ?? '';
@@ -48,6 +50,14 @@ export function uniqueFileName(name: string, assets: NilaAsset[]) {
   return `${base}-${index}${extension}`;
 }
 
+export function projectPathForAsset(kind: AssetKind, fileName: string) {
+  return kind === 'font' ? `src/assets/fonts/${fileName}` : `public/assets/media/${fileName}`;
+}
+
+export function publicUrlForAsset(asset: Pick<NilaAsset, 'kind' | 'fileName'>) {
+  return asset.kind === 'font' ? `/assets/fonts/${asset.fileName}` : `/assets/media/${asset.fileName}`;
+}
+
 export async function createAssetFromFile(file: File, assets: NilaAsset[]): Promise<NilaAsset> {
   const kind = classifyAsset(file);
   if (file.size <= 0) throw new Error('Empty files are not allowed.');
@@ -63,7 +73,7 @@ export async function createAssetFromFile(file: File, assets: NilaAsset[]): Prom
     mimeType: file.type || mimeFromExtension(extensionOf(file.name)),
     size: file.size,
     dataUrl,
-    projectPath: `src/assets/${kind === 'font' ? 'fonts' : 'media'}/${fileName}`,
+    projectPath: projectPathForAsset(kind, fileName),
     createdAt: new Date().toISOString(),
   };
 }
