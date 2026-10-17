@@ -14,5 +14,5 @@ if ! node_ok; then echo 'Installed Node.js is older than 22. Install Node.js 22+
 mkdir -p "$HOME/.nila/workspace"
 npm install --no-audit --no-fund
 npm update --no-audit --no-fund
-npm run check
+npm run verify
 echo 'Setup complete. Start Nila with: npm run dev'
