@@ -9,3 +9,5 @@ dist/
 Thumbs.db
 coverage/
 .nila-cache/
+.nila-vendor/
+public/vendor/shadcnspace/
