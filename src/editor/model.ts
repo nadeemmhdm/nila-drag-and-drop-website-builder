@@ -1,10 +1,21 @@
-import type { EditorNode, EditorNodeType, NodeLocation } from './types';
+import type { EditorNode, EditorNodeType, NodeLocation, ResponsiveStyles } from './types';
 
 const id = () => crypto.randomUUID();
-const responsive = (desktop: Record<string, string | number> = {}, tablet: Record<string, string | number> = {}, mobile: Record<string, string | number> = {}) => ({ desktop, tablet, mobile });
+const responsive = (
+  desktop: Record<string, string | number> = {},
+  tablet: Record<string, string | number> = {},
+  mobile: Record<string, string | number> = {},
+): ResponsiveStyles => ({ desktop, tablet, mobile });
 
 export function createNode(type: EditorNodeType): EditorNode {
-  const shared = { id: id(), type, children: [], locked: false, hidden: false } as const;
+  const shared: Pick<EditorNode, 'id' | 'type' | 'children' | 'locked' | 'hidden'> = {
+    id: id(),
+    type,
+    children: [],
+    locked: false,
+    hidden: false,
+  };
+
   switch (type) {
     case 'section': return { ...shared, name: 'Section', props: {}, styles: responsive({ padding: '72px 32px', background: '#ffffff' }, {}, { padding: '44px 20px' }) };
     case 'container': return { ...shared, name: 'Container', props: {}, styles: responsive({ width: '100%', maxWidth: '1120px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }) };
@@ -77,7 +88,14 @@ export function removeNode(nodes: EditorNode[], nodeId: string): { nodes: Editor
   }
   for (const node of nodes) {
     const nested = removeNode(node.children, nodeId);
-    if (nested.removed) return { nodes: nodes.map((candidate) => candidate.id === node.id ? { ...candidate, children: nested.nodes } : candidate), removed: nested.removed, parentId: node.id, index: nested.index };
+    if (nested.removed) {
+      return {
+        nodes: nodes.map((candidate) => candidate.id === node.id ? { ...candidate, children: nested.nodes } : candidate),
+        removed: nested.removed,
+        parentId: node.id,
+        index: nested.index,
+      };
+    }
   }
   return { nodes, removed: null, parentId: null, index: -1 };
 }
