@@ -61,7 +61,7 @@ function tokenKey(token) {
 class StdioRpcClient {
   constructor(token) {
     const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    const args = ['-y', 'mcp-remote@latest', MCP_URL];
+    const args = ['-y', 'mcp-remote@0.15.1', MCP_URL];
     const env = { ...process.env };
     if (token) {
       env.NILA_SHADCNSPACE_AUTH = `Bearer ${token}`;
