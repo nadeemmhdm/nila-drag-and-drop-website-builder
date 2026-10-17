@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Copy, Eye, EyeOff, FileStack, FolderOpen, HardDrive, Layers3, LayoutGrid, LayoutTemplate, Monitor, PackageOpen, PanelLeft, Redo2, SearchCheck, Smartphone, Tablet, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Bot, Copy, Eye, EyeOff, FileStack, FolderOpen, HardDrive, Layers3, LayoutGrid, LayoutTemplate, Monitor, PackageOpen, PanelLeft, Redo2, SearchCheck, Smartphone, Tablet, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DeviceViewport, NilaAsset, NilaFont, NilaPageSeo, NilaSiteSeo } from '../core/project';
 import { APP_NAME, APP_VERSION, PROJECT_SCHEMA_VERSION } from '../core/constants';
@@ -8,7 +8,8 @@ import { auditSeo } from '../seo/audit';
 import { createDefaultSiteSeo } from '../seo/defaults';
 import { loadLastWorkspace, saveWorkspace } from '../workspace/storage';
 import type { WorkspaceSnapshot } from '../workspace/types';
-import { clearAssetReference } from './assetPipeline';
+import { clearAssetReference, createAssetFromFile, MAX_TOTAL_ASSET_BYTES } from './assetPipeline';
+import { AiPanel } from './components/AiPanel';
 import { AssetManager } from './components/AssetManager';
 import { Canvas } from './components/Canvas';
 import { CatalogBrowser, type PresetInsertMode } from './components/CatalogBrowser';
@@ -29,7 +30,25 @@ import { useProjectHistory } from './projectHistory';
 import type { EditorNode, EditorNodeProps, EditorNodeType, NodeStyle } from './types';
 
 const viewportIcons = { desktop: Monitor, tablet: Tablet, mobile: Smartphone };
-type LeftPanel = 'pages' | 'elements' | 'sections' | 'templates' | 'assets' | 'seo' | 'export' | 'workspace' | 'layers';
+type LeftPanel = 'pages' | 'elements' | 'sections' | 'templates' | 'ai' | 'assets' | 'seo' | 'export' | 'workspace' | 'layers';
+
+function normalizeSiteSeo(value: NilaSiteSeo | undefined, projectName: string): NilaSiteSeo {
+  const defaults = createDefaultSiteSeo(projectName || 'Untitled Site');
+  const legacy = (value ?? {}) as Partial<NilaSiteSeo>;
+  const legacyName = legacy.siteName?.trim();
+  const siteName = !legacyName || legacyName === 'Untitled Site' ? projectName || defaults.siteName : legacyName;
+  return {
+    ...defaults,
+    ...legacy,
+    siteName,
+    browserTitle: legacy.browserTitle?.trim() || siteName,
+    copyrightText: legacy.copyrightText?.trim() || `© ${new Date().getFullYear()} ${siteName}. All rights reserved.`,
+    socialProfiles: Array.isArray(legacy.socialProfiles) ? legacy.socialProfiles : [],
+    topics: Array.isArray(legacy.topics) ? legacy.topics : [],
+    robots: { ...defaults.robots, ...(legacy.robots ?? {}) },
+    security: { ...defaults.security, ...(legacy.security ?? {}) },
+  };
+}
 
 export function EditorShell() {
   const initial = useMemo(createInitialEditorState, []);
@@ -67,7 +86,7 @@ export function EditorShell() {
       commitPages(snapshot.pages);
       setAssets(snapshot.assets);
       setFonts(snapshot.fonts);
-      setSiteSeo(snapshot.seo);
+      setSiteSeo(normalizeSiteSeo(snapshot.seo, snapshot.name));
       setActivePageId(snapshot.activePageId || snapshot.pages.find((page) => page.isHome)?.id || snapshot.pages[0]?.id || '');
       setWorkspaceId(snapshot.id);
       setWorkspaceOwner(snapshot.ownerFolder);
@@ -97,7 +116,7 @@ export function EditorShell() {
     commitPages(snapshot.pages);
     setAssets(snapshot.assets);
     setFonts(snapshot.fonts);
-    setSiteSeo(snapshot.seo);
+    setSiteSeo(normalizeSiteSeo(snapshot.seo, snapshot.name));
     setActivePageId(snapshot.activePageId || snapshot.pages.find((page) => page.isHome)?.id || snapshot.pages[0]?.id || '');
     setSelectedId(null);
     setWorkspaceId(snapshot.id);
@@ -111,7 +130,7 @@ export function EditorShell() {
   const createNewWorkspace = () => {
     const next = createInitialEditorState();
     const now = new Date().toISOString();
-    const seo = createDefaultSiteSeo();
+    const seo = createDefaultSiteSeo('Untitled Site');
     const snapshot:WorkspaceSnapshot = { id:crypto.randomUUID(), ownerFolder:workspaceOwner || 'local-user', name:'Untitled Site', schemaVersion:PROJECT_SCHEMA_VERSION, pages:next.pages, assets:[], fonts:[], seo, activePageId:next.activePageId, createdAt:now, savedAt:now };
     applyWorkspace(snapshot);
   };
@@ -226,21 +245,33 @@ export function EditorShell() {
   const patchPageSeo = (patch: Partial<NilaPageSeo>) => { if (!activePageId) return; commitPages((current) => current.map((page) => page.id === activePageId ? { ...page, seo: { ...page.seo, ...patch, modifiedAt: new Date().toISOString() } } : page)); };
 
   const addAssets = (nextAssets: NilaAsset[], nextFonts: NilaFont[]) => { setAssets((current) => [...current, ...nextAssets]); setFonts((current) => [...current, ...nextFonts]); };
+  const uploadMedia = async (file: File, expectedKind: 'image' | 'video') => {
+    const total = assets.reduce((sum, asset) => sum + asset.size, 0);
+    if (total + file.size > MAX_TOTAL_ASSET_BYTES) throw new Error('Project asset limit is 80 MB for the current browser session.');
+    const asset = await createAssetFromFile(file, assets);
+    if (asset.kind !== expectedKind) throw new Error(`Please select a ${expectedKind} file.`);
+    setAssets((current) => [...current, asset]);
+    return asset;
+  };
   const deleteAsset = (assetId: string) => {
     setAssets((current) => current.filter((asset) => asset.id !== assetId));
     setFonts((current) => current.filter((font) => font.assetId !== assetId));
-    setSiteSeo((current) => current.organizationLogoAssetId === assetId ? { ...current, organizationLogoAssetId: undefined } : current);
+    setSiteSeo((current) => ({ ...current, organizationLogoAssetId: current.organizationLogoAssetId === assetId ? undefined : current.organizationLogoAssetId, faviconAssetId: current.faviconAssetId === assetId ? undefined : current.faviconAssetId }));
     commitPages((current) => current.map((page) => ({ ...page, nodes: clearAssetReference(page.nodes, assetId), seo: page.seo.ogImageAssetId === assetId ? { ...page.seo, ogImageAssetId: undefined } : page.seo })));
   };
-  const insertAsset = (asset: NilaAsset) => { if (asset.kind === 'font') return; const node = createNode(asset.kind === 'video' ? 'video' : 'image'); node.props = { ...node.props, assetId: asset.id, src: undefined, alt: asset.name }; commitActiveNodes((current) => [...current, node]); setSelectedId(node.id); };
+  const insertAsset = (asset: NilaAsset) => { if (asset.kind === 'font') return; const node = createNode(asset.kind === 'video' ? 'video' : 'image'); node.props = { ...node.props, assetId: asset.id, src: undefined, alt: asset.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ') }; commitActiveNodes((current) => [...current, node]); setSelectedId(node.id); };
   const insertIcon = (name: string) => { const node = createNode('icon'); node.props.iconName = name; commitActiveNodes((current) => [...current, node]); setSelectedId(node.id); };
   const updateFont = (fontId: string, patch: Partial<NilaFont>) => setFonts((current) => current.map((font) => font.id === fontId ? { ...font, ...patch } : font));
   const applyFont = (font: NilaFont) => { if (selectedNode) patchStyle({ fontFamily: `"${font.family}", sans-serif`, fontWeight: font.weight, fontStyle: font.style }); };
+  const replaceWebsiteFromAi = (nextPages: typeof pages, nextSeo: NilaSiteSeo) => { commitPages(nextPages); setSiteSeo(nextSeo); setActivePageId(nextPages.find((page) => page.isHome)?.id ?? nextPages[0]?.id ?? ''); setSelectedId(null); };
+  const replaceSeoFromAi = (nextPages: typeof pages, nextSeo: NilaSiteSeo) => { commitPages(nextPages); setSiteSeo(nextSeo); };
+  const enhanceSelected = (text: string) => { if (selectedNode?.props.text !== undefined) patchProps({ text }); };
 
   const leftContent = leftPanel === 'pages' ? <><div className="panel-heading"><strong>Pages</strong><span>{pages.length} total</span></div><PagePanel pages={pages} activePageId={activePageId} onActivate={activatePage} onAdd={addPage} onRename={renamePage} onSlugChange={changeSlug} onSetHome={setHome} onDuplicate={copyPage} onDelete={deletePage} /></>
     : leftPanel === 'elements' ? <><div className="panel-heading"><strong>Elements</strong><span>Drag to canvas</span></div><Palette /></>
     : leftPanel === 'sections' ? <><div className="panel-heading"><strong>Sections</strong><span>Reusable blocks</span></div><CatalogBrowser kind="section" onInsert={insertPreset} /></>
     : leftPanel === 'templates' ? <><div className="panel-heading"><strong>Templates</strong><span>Starter pages</span></div><CatalogBrowser kind="template" onInsert={insertPreset} /></>
+    : leftPanel === 'ai' ? <><div className="panel-heading"><strong>Nila AI</strong><span>Build & optimize</span></div><AiPanel projectName={workspaceName} pages={pages} siteSeo={siteSeo} selectedNode={selectedNode} onReplaceWebsite={replaceWebsiteFromAi} onReplaceSeo={replaceSeoFromAi} onEnhanceSelected={enhanceSelected}/></>
     : leftPanel === 'assets' ? <><div className="panel-heading"><strong>Assets</strong><span>Local project files</span></div><AssetManager assets={assets} fonts={fonts} canApplyFont={Boolean(selectedNode)} onAdd={addAssets} onDelete={deleteAsset} onInsertAsset={insertAsset} onUpdateFont={updateFont} onApplyFont={applyFont} onInsertIcon={insertIcon} /></>
     : leftPanel === 'seo' ? <><div className="panel-heading"><strong>SEO / AEO / GEO</strong><span>{seoAudit.score}/100</span></div><SeoPanel siteSeo={siteSeo} page={activePage} pages={pages} assets={assets} onSiteSeoChange={setSiteSeo} onPatchPageSeo={patchPageSeo} /></>
     : leftPanel === 'export' ? <><div className="panel-heading"><strong>Preview & Export</strong><span>Production output</span></div><ExportPanel input={exportInput} activePageId={activePageId} /></>
@@ -251,7 +282,7 @@ export function EditorShell() {
     <ProjectFontFaces assets={assets} fonts={fonts} />
     <div className="editor-app">
       <header className="editor-topbar"><div className="brand"><div className="brand-mark">N</div><div><strong>{APP_NAME}</strong><span>v{APP_VERSION} · {activePage ? routeForPage(activePage) : '/'}</span></div></div><div className="topbar-group history-controls"><button type="button" disabled={!canUndo} onClick={undo}><Undo2 size={16} /></button><button type="button" disabled={!canRedo} onClick={redo}><Redo2 size={16} /></button></div><div className="viewport-switcher">{(['desktop','tablet','mobile'] as DeviceViewport[]).map((device) => { const Icon = viewportIcons[device]; return <button type="button" key={device} className={viewport === device ? 'active' : ''} onClick={() => setViewport(device)}><Icon size={16} /><span>{device}</span></button>; })}</div><div className="topbar-group zoom-controls"><button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))}><ZoomOut size={16} /></button><span>{zoom}%</span><button type="button" onClick={() => setZoom((value) => Math.min(120, value + 10))}><ZoomIn size={16} /></button></div><button type="button" className={`preview-button${preview ? ' active' : ''}`} onClick={() => { setPreview((value) => !value); setSelectedId(null); }}>{preview ? <EyeOff size={16} /> : <Eye size={16} />} {preview ? 'Edit' : 'Preview'}</button></header>
-      <div className="editor-workspace"><aside className="left-sidebar"><div className="sidebar-tabs nine"><button type="button" className={leftPanel === 'pages' ? 'active' : ''} onClick={() => setLeftPanel('pages')}><FileStack size={15} /><span>Pages</span></button><button type="button" className={leftPanel === 'elements' ? 'active' : ''} onClick={() => setLeftPanel('elements')}><PanelLeft size={15} /><span>Elements</span></button><button type="button" className={leftPanel === 'sections' ? 'active' : ''} onClick={() => setLeftPanel('sections')}><LayoutGrid size={15} /><span>Sections</span></button><button type="button" className={leftPanel === 'templates' ? 'active' : ''} onClick={() => setLeftPanel('templates')}><LayoutTemplate size={15} /><span>Templates</span></button><button type="button" className={leftPanel === 'assets' ? 'active' : ''} onClick={() => setLeftPanel('assets')}><FolderOpen size={15} /><span>Assets</span></button><button type="button" className={leftPanel === 'seo' ? 'active' : ''} onClick={() => setLeftPanel('seo')}><SearchCheck size={15} /><span>SEO</span></button><button type="button" className={leftPanel === 'export' ? 'active' : ''} onClick={() => setLeftPanel('export')}><PackageOpen size={15} /><span>Export</span></button><button type="button" className={leftPanel === 'workspace' ? 'active' : ''} onClick={() => setLeftPanel('workspace')}><HardDrive size={15} /><span>Local</span></button><button type="button" className={leftPanel === 'layers' ? 'active' : ''} onClick={() => setLeftPanel('layers')}><Layers3 size={15} /><span>Layers</span></button></div><div className="sidebar-scroll">{leftContent}</div></aside><main className="workspace-main"><Canvas nodes={nodes} pages={pages} assets={assets} activePageId={activePageId} viewport={viewport} zoom={zoom} selectedId={selectedId} preview={preview} onSelect={setSelectedId} onNavigatePage={activatePage} /></main><aside className="right-sidebar">{preview ? <div className="preview-help"><Eye size={18} /><strong>Preview mode</strong><p>Internal page and anchor links are interactive. Press Escape or click Edit to return.</p></div> : <Inspector node={selectedNode} parentNode={selectedParent} pages={pages} assets={assets} fonts={fonts} viewport={viewport} onPatch={patchSelected} onPatchProps={patchProps} onPatchStyle={patchStyle} onPatchParentStyle={patchParentStyle} onRemoveStyle={removeStyle} onResetViewportStyles={resetViewportStyles} onDelete={deleteSelected} onDuplicate={duplicateSelected} />}</aside></div>
+      <div className="editor-workspace"><aside className="left-sidebar"><div className="sidebar-tabs ten"><button type="button" className={leftPanel === 'pages' ? 'active' : ''} onClick={() => setLeftPanel('pages')}><FileStack size={15} /><span>Pages</span></button><button type="button" className={leftPanel === 'elements' ? 'active' : ''} onClick={() => setLeftPanel('elements')}><PanelLeft size={15} /><span>Elements</span></button><button type="button" className={leftPanel === 'sections' ? 'active' : ''} onClick={() => setLeftPanel('sections')}><LayoutGrid size={15} /><span>Sections</span></button><button type="button" className={leftPanel === 'templates' ? 'active' : ''} onClick={() => setLeftPanel('templates')}><LayoutTemplate size={15} /><span>Templates</span></button><button type="button" className={leftPanel === 'ai' ? 'active' : ''} onClick={() => setLeftPanel('ai')}><Bot size={15}/><span>AI</span></button><button type="button" className={leftPanel === 'assets' ? 'active' : ''} onClick={() => setLeftPanel('assets')}><FolderOpen size={15} /><span>Assets</span></button><button type="button" className={leftPanel === 'seo' ? 'active' : ''} onClick={() => setLeftPanel('seo')}><SearchCheck size={15} /><span>SEO</span></button><button type="button" className={leftPanel === 'export' ? 'active' : ''} onClick={() => setLeftPanel('export')}><PackageOpen size={15} /><span>Export</span></button><button type="button" className={leftPanel === 'workspace' ? 'active' : ''} onClick={() => setLeftPanel('workspace')}><HardDrive size={15} /><span>Local</span></button><button type="button" className={leftPanel === 'layers' ? 'active' : ''} onClick={() => setLeftPanel('layers')}><Layers3 size={15} /><span>Layers</span></button></div><div className="sidebar-scroll">{leftContent}</div></aside><main className="workspace-main"><Canvas nodes={nodes} pages={pages} assets={assets} activePageId={activePageId} viewport={viewport} zoom={zoom} selectedId={selectedId} preview={preview} onSelect={setSelectedId} onNavigatePage={activatePage} /></main><aside className="right-sidebar">{preview ? <div className="preview-help"><Eye size={18} /><strong>Preview mode</strong><p>Internal page and anchor links are interactive. Press Escape or click Edit to return.</p></div> : <Inspector node={selectedNode} parentNode={selectedParent} pages={pages} assets={assets} fonts={fonts} viewport={viewport} onPatch={patchSelected} onPatchProps={patchProps} onPatchStyle={patchStyle} onPatchParentStyle={patchParentStyle} onRemoveStyle={removeStyle} onResetViewportStyles={resetViewportStyles} onDelete={deleteSelected} onDuplicate={duplicateSelected} onUploadMedia={uploadMedia} />}</aside></div>
       <footer className="editor-statusbar"><span>{workspaceName} · {activePage?.name ?? 'Page'} · {activePage ? routeForPage(activePage) : '/'}</span><span>{preview ? 'Preview mode' : selectedNode ? `Selected: ${selectedNode.name}` : 'No selection'}</span><span>{storageStatus} · SEO {seoAudit.score}/100 · {assets.length} assets · {viewport}</span></footer>
     </div>
     <DragOverlay>{activeLabel ? <div className="drag-overlay"><Copy size={14} /> {activeLabel}</div> : null}</DragOverlay>
