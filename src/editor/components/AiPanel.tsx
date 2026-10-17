@@ -1,8 +1,8 @@
-import { Bot, CheckCircle2, KeyRound, Loader2, Send, Sparkles, WandSparkles } from 'lucide-react';
+import { Bot, CheckCircle2, KeyRound, Loader2, RefreshCw, Send, Server, Sparkles, WandSparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { NilaPage, NilaSiteSeo } from '../../core/project';
 import type { EditorNode } from '../types';
-import { AI_DEFAULTS, loadAiSettings, saveAiSettings, testAiConnection, type AiConnection, type AiProvider } from '../../ai/client';
+import { AI_DEFAULTS, listAiModels, loadAiSettings, saveAiSettings, testAiConnection, usesLocalAiBridge, type AiConnection, type AiProvider } from '../../ai/client';
 import { applyAiSeoPlan, enhanceContent, generateSeoPlan, generateWebsitePlan, materializeAiSitePlan } from '../../ai/sitePlanner';
 
 interface AiPanelProps {
@@ -17,7 +17,19 @@ interface AiPanelProps {
 
 type Activity = { id: string; label: string; status: 'running' | 'success' | 'error'; detail?: string };
 
-const providerLabels: Record<AiProvider, string> = { ollama: 'Ollama Cloud', gemini: 'Google Gemini', openai: 'OpenAI', custom: 'OpenAI-compatible / Local' };
+const providerLabels: Record<AiProvider, string> = {
+  ollama: 'Ollama Cloud',
+  gemini: 'Google Gemini',
+  openai: 'OpenAI',
+  custom: 'OpenAI-compatible / Local',
+};
+
+const providerHelp: Record<AiProvider, string> = {
+  ollama: 'Uses Ollama Cloud API at ollama.com with Bearer API-key authentication. Cloud-model names are normalized automatically.',
+  gemini: 'Uses the official Gemini generateContent API with the x-goog-api-key header.',
+  openai: 'Uses the OpenAI Responses API with Bearer API-key authentication.',
+  custom: 'Connects directly to an OpenAI-compatible endpoint. Local HTTP is allowed only for localhost.',
+};
 
 export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWebsite, onReplaceSeo, onEnhanceSelected }: AiPanelProps) {
   const saved = useMemo(loadAiSettings, []);
@@ -25,13 +37,19 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
   const [model, setModel] = useState(saved.model || AI_DEFAULTS[saved.provider].model);
   const [baseUrl, setBaseUrl] = useState(saved.baseUrl ?? AI_DEFAULTS[saved.provider].baseUrl ?? '');
   const [apiKey, setApiKey] = useState('');
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [modelsError, setModelsError] = useState('');
   const [request, setRequest] = useState('');
   const [enhanceInstruction, setEnhanceInstruction] = useState('Make this copy clearer, concise, professional and conversion-friendly.');
   const [busy, setBusy] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const bridgeActive = usesLocalAiBridge();
 
   const connection: AiConnection = { provider, model: model.trim(), apiKey, baseUrl: baseUrl.trim() };
   const selectedText = selectedNode?.props.text ?? '';
+  const keyRequired = provider !== 'custom';
+  const connectionReady = Boolean(model.trim()) && (!keyRequired || Boolean(apiKey.trim()));
 
   const persist = (nextProvider = provider, nextModel = model, nextBase = baseUrl) => {
     saveAiSettings({ provider: nextProvider, model: nextModel, baseUrl: nextBase || undefined });
@@ -39,7 +57,12 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
 
   const changeProvider = (next: AiProvider) => {
     const defaults = AI_DEFAULTS[next];
-    setProvider(next); setModel(defaults.model); setBaseUrl(defaults.baseUrl ?? '');
+    setProvider(next);
+    setModel(defaults.model);
+    setBaseUrl(defaults.baseUrl ?? '');
+    setApiKey('');
+    setModels([]);
+    setModelsError('');
     saveAiSettings({ provider: next, model: defaults.model, baseUrl: defaults.baseUrl });
   };
 
@@ -54,15 +77,33 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
   const run = async (label: string, task: (activityId: string) => Promise<void>) => {
     if (busy) return;
     persist();
-    const id = startActivity(label); setBusy(true);
+    const id = startActivity(label);
+    setBusy(true);
     try { await task(id); finishActivity(id, 'success'); }
     catch (error) { finishActivity(id, 'error', error instanceof Error ? error.message : 'AI request failed.'); }
     finally { setBusy(false); }
   };
 
+  const loadModels = async () => {
+    if (modelsBusy) return;
+    setModelsBusy(true);
+    setModelsError('');
+    try {
+      const next = await listAiModels(connection);
+      setModels(next);
+      if (!next.length) setModelsError('Provider connected, but no compatible models were returned. You can still type a model name manually.');
+      else if (!next.includes(model) && provider !== 'custom') setModel(next[0]);
+    } catch (error) {
+      setModels([]);
+      setModelsError(error instanceof Error ? error.message : 'Unable to load models.');
+    } finally {
+      setModelsBusy(false);
+    }
+  };
+
   const test = () => run('Testing AI connection', async (id) => {
     await testAiConnection(connection);
-    finishActivity(id, 'success', `${providerLabels[provider]} responded successfully.`);
+    finishActivity(id, 'success', `${providerLabels[provider]} responded successfully with ${model}.`);
   });
 
   const build = () => run('Planning and building website', async (id) => {
@@ -93,17 +134,21 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
     finishActivity(id, 'success', 'Metadata updated. robots.txt, sitemap.xml, llms.txt and security.txt previews now regenerate automatically.');
   });
 
-  return <div className="ai-panel">
-    <div className="ai-hero"><div className="ai-orb"><Bot size={20}/></div><div><strong>Nila AI</strong><span>Build with structured Nila components</span></div></div>
-    <div className="ai-security-note"><KeyRound size={14}/><span>API keys are memory-only. They are never written to browser storage, project files or exported websites, and they clear on refresh.</span></div>
+  return <div className="ai-panel ai-panel-v2">
+    <div className="ai-hero"><div className="ai-orb"><Bot size={20}/></div><div><strong>Nila AI</strong><span>Build, write and optimize with your provider</span></div></div>
+    <div className="ai-security-note"><KeyRound size={14}/><span>API keys are memory-only. Nila never saves them to localStorage, project files or exported websites.</span></div>
 
-    <section className="ai-card">
-      <h3>Provider</h3>
+    <section className="ai-card ai-provider-card">
+      <div className="ai-card-heading"><div><h3>Provider connection</h3><p>Choose a provider, enter its key, load available models, then test before using AI actions.</p></div><span className={`ai-bridge-badge${bridgeActive ? ' active' : ''}`}><Server size={12}/>{bridgeActive ? 'Local bridge active' : 'Direct browser mode'}</span></div>
       <label>AI provider<select value={provider} onChange={(event) => changeProvider(event.target.value as AiProvider)}>{(Object.keys(providerLabels) as AiProvider[]).map((item) => <option key={item} value={item}>{providerLabels[item]}{item === 'ollama' ? ' · Recommended' : ''}</option>)}</select></label>
-      <label>Model<input value={model} onChange={(event) => setModel(event.target.value)} onBlur={() => persist()} placeholder="Model name"/></label>
-      {provider === 'custom' ? <label>Base URL<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} onBlur={() => persist()} placeholder="http://127.0.0.1:11434/v1"/><small>HTTPS required except localhost. Must expose an OpenAI-compatible /chat/completions endpoint.</small></label> : null}
-      <label>API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} autoComplete="off" placeholder={provider === 'custom' ? 'Optional for local providers' : 'Required'}/></label>
-      <button type="button" className="ai-secondary" disabled={busy || !model.trim()} onClick={test}>{busy ? <Loader2 className="spin" size={14}/> : <CheckCircle2 size={14}/>} Test connection</button>
+      <div className="ai-provider-help">{providerHelp[provider]}</div>
+      {provider === 'custom' ? <label>Base URL<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} onBlur={() => persist()} placeholder="http://127.0.0.1:11434/v1"/><small>Must expose OpenAI-compatible <code>/models</code> and <code>/chat/completions</code> endpoints.</small></label> : null}
+      <label>API key<input type="password" value={apiKey} onChange={(event) => { setApiKey(event.target.value); setModelsError(''); }} autoComplete="new-password" spellCheck={false} placeholder={provider === 'custom' ? 'Optional for local providers' : 'Required — kept in memory only'}/></label>
+      <div className="ai-model-row"><label>Model<input list="nila-ai-models" value={model} onChange={(event) => setModel(event.target.value)} onBlur={() => persist()} placeholder="Model name"/><datalist id="nila-ai-models">{models.map((item) => <option value={item} key={item}/>)}</datalist></label><button type="button" className="ai-model-refresh" disabled={modelsBusy || (keyRequired && !apiKey.trim())} onClick={() => void loadModels()}>{modelsBusy ? <Loader2 className="spin" size={14}/> : <RefreshCw size={14}/>}<span>{models.length ? 'Refresh' : 'Load models'}</span></button></div>
+      {models.length ? <div className="ai-model-count"><CheckCircle2 size={13}/>{models.length} model{models.length === 1 ? '' : 's'} available. Start typing to search the list.</div> : null}
+      {modelsError ? <div className="ai-provider-error">{modelsError}</div> : null}
+      <button type="button" className="ai-secondary ai-test-button" disabled={busy || !connectionReady} onClick={test}>{busy ? <Loader2 className="spin" size={14}/> : <CheckCircle2 size={14}/>} Test connection</button>
+      {!bridgeActive && provider !== 'custom' ? <small className="ai-bridge-warning">For the most reliable hosted-provider connection, run Nila with <code>npm start</code>. The local bridge avoids browser CORS failures.</small> : null}
     </section>
 
     <section className="ai-card ai-build-card">
@@ -111,20 +156,20 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
       <p>Describe the website. AI chooses from Nila sections and creates copy, responsive theme, pages and media alt-text placeholders.</p>
       <textarea rows={7} value={request} onChange={(event) => setRequest(event.target.value)} placeholder="Example: Build a modern web development agency website for Kerala businesses with Home, Services, About and Contact pages. Use a clean light theme with blue accents."/>
       <div className="ai-media-rule"><Sparkles size={13}/> AI does not generate or fetch images/videos. Upload your own media after the layout is created.</div>
-      <button type="button" className="ai-primary" disabled={busy || !request.trim()} onClick={build}>{busy ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} Build with AI</button>
+      <button type="button" className="ai-primary" disabled={busy || !request.trim() || !connectionReady} onClick={build}>{busy ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} Build with AI</button>
     </section>
 
     <section className="ai-card">
       <h3>Enhance selected content</h3>
       <div className="ai-selection">{selectedNode && selectedText ? <><strong>{selectedNode.name}</strong><span>{selectedText.slice(0, 130)}{selectedText.length > 130 ? '…' : ''}</span></> : <span>Select a heading, paragraph, button, link, badge or quote.</span>}</div>
       <textarea rows={3} value={enhanceInstruction} onChange={(event) => setEnhanceInstruction(event.target.value)}/>
-      <button type="button" className="ai-secondary" disabled={busy || !selectedText.trim()} onClick={enhance}><Sparkles size={14}/> Enhance copy</button>
+      <button type="button" className="ai-secondary" disabled={busy || !selectedText.trim() || !connectionReady} onClick={enhance}><Sparkles size={14}/> Enhance copy</button>
     </section>
 
     <section className="ai-card">
       <h3>Search + AI readiness</h3>
       <p>Generate SEO, AEO and GEO metadata from the actual page copy. Nila then regenerates deterministic SEO files.</p>
-      <button type="button" className="ai-primary" disabled={busy || pages.length === 0} onClick={seo}><WandSparkles size={14}/> Generate SEO / AEO / GEO</button>
+      <button type="button" className="ai-primary" disabled={busy || pages.length === 0 || !connectionReady} onClick={seo}><WandSparkles size={14}/> Generate SEO / AEO / GEO</button>
     </section>
 
     <section className="ai-activity">
