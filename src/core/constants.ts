@@ -1,5 +1,5 @@
 export const APP_NAME = 'Nila Website Builder';
-export const APP_VERSION = '0.6.0-alpha.1';
+export const APP_VERSION = '0.7.0-alpha.1';
 
 export const VIEWPORTS = {
   mobile: 390,
@@ -7,4 +7,4 @@ export const VIEWPORTS = {
   desktop: 1440,
 } as const;
 
-export const PROJECT_SCHEMA_VERSION = 6;
+export const PROJECT_SCHEMA_VERSION = 7;
