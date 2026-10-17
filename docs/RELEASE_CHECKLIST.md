@@ -10,7 +10,7 @@ Use this checklist before publishing a Nila tag or GitHub release.
 - [ ] `npm run typecheck` passes.
 - [ ] `npm run build` passes.
 - [ ] `npm run audit:prod` reports no high/critical production dependency vulnerabilities.
-- [ ] CI is green on the exact release commit.
+- [ ] CI and CodeQL are green on the exact release commit.
 
 ## Security
 
@@ -35,7 +35,15 @@ Use this checklist before publishing a Nila tag or GitHub release.
 - [ ] Build one generated website with `npm install && npm run build`.
 - [ ] Verify generated SEO/discovery files and visible provenance.
 
-## Documentation and release
+## Publishing
+
+1. Confirm `main` contains the intended release commit and all required checks are green.
+2. Create and push a version tag matching `v*`, for example `v0.10.0-beta.1`.
+3. The Release workflow checks out that exact tag, runs `npm run verify`, builds the editor, packages `dist/`, and creates a GitHub Release automatically.
+4. Tags containing a hyphen (for example `-beta.1` or `-rc.1`) are published as GitHub pre-releases; stable tags are published as normal releases.
+5. Verify the generated release notes and attached `Nila-editor-production-build.zip` artifact.
+
+## Documentation
 
 - [ ] README and security documentation match current behavior.
 - [ ] CHANGELOG contains the release entry.
