@@ -40,15 +40,15 @@ export function ProjectUiLibrary({ projectId }: { projectId: string }) {
     setBusyId(item.name);setNotice('');
     try{
       let sourceText='';
-      try{sourceText=(await readPrimarySource(item)).content;}catch{/* Native adapter can still build a safe fallback from registry metadata. */}
       if(item.kind==='theme'){
+        try{sourceText=(await readPrimarySource(item)).content;}catch{/* Theme adapter falls back to neutral tokens if the local CSS cannot be read. */}
         const theme=createNativeVendorTheme(item,sourceText);
         dispatchProjectUiRuntime({action:'theme',theme});
         setNotice(`${item.title} applied to the current project. You can undo it from the editor toolbar.`);
       }else{
         const workspace=await loadLastWorkspace();
         const pageId=workspace?.id===projectId?workspace.activePageId:undefined;
-        const nodes=buildNativeVendorNodes(item,sourceText);
+        const nodes=buildNativeVendorNodes(item);
         dispatchProjectUiRuntime({action:'insert',pageId,nodes});
         setNotice(`${item.title} inserted as editable Nila UI. Switch back to the canvas to customize it.`);
       }
