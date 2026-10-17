@@ -21,20 +21,50 @@ Nila is a local-first, open-source visual website builder for creating responsiv
 
 Generated websites do **not** require the Nila editor at runtime.
 
-## Requirements
+## One-command install and run
+
+The installer downloads or updates Nila, checks Git and Node.js, installs missing prerequisites when supported, installs missing npm packages, applies compatible package updates, runs the full verification suite, and then starts Nila automatically.
+
+### Windows — PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/nadeemmhdm/nila-drag-and-drop-website-builder/main/install.ps1 | iex
+```
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nadeemmhdm/nila-drag-and-drop-website-builder/main/install.sh | bash
+```
+
+Default install location: `~/Nila`. Set `NILA_HOME` before running the installer to choose another location.
+
+The installer only applies npm updates that stay within the compatible version ranges declared by the project. Major dependency upgrades are intentionally not forced during local installation.
+
+## Simple commands
+
+Run these from the Nila directory after installation:
+
+| Command | Purpose |
+| --- | --- |
+| `npm start` | Start Nila and open it in the default browser. |
+| `npm run update` | Pull the latest Nila source, install missing packages, apply compatible dependency updates, and verify everything. |
+| `npm run repair` | Repair/reinstall local dependencies, apply compatible updates, and run full verification. |
+| `npm run doctor` | Check Node.js, npm, Git, and the local Nila installation. |
+| `npm run verify` | Run tests, TypeScript validation, production build, and production dependency security audit. |
+| `npm run dev` | Start Nila without automatically opening a browser. |
+
+The local server binds to `127.0.0.1` by default.
+
+## Manual/local setup
+
+Requirements:
 
 - Node.js **22 or newer**.
 - npm **10 or newer** is recommended.
-- Git is recommended for updates and contribution workflows.
+- Git for source updates.
 
-## Local setup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/nadeemmhdm/nila-drag-and-drop-website-builder.git
-cd nila-drag-and-drop-website-builder
-```
+If the repository is already cloned:
 
 ### Windows
 
@@ -48,30 +78,13 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 bash ./setup.sh
 ```
 
-The setup scripts verify Node.js, install/update dependencies, run tests, typecheck, production build validation and a production-dependency security audit.
-
-Manual setup is also supported:
+Manual npm setup is also supported:
 
 ```bash
 npm install
 npm run verify
-npm run dev
+npm start
 ```
-
-The development server binds to `127.0.0.1` by default. Open `http://127.0.0.1:5173`.
-
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local Vite development server. |
-| `npm run test` | Run automated Vitest suites. |
-| `npm run typecheck` | Run strict TypeScript validation. |
-| `npm run build` | Typecheck and create a production build. |
-| `npm run audit:prod` | Fail on high/critical vulnerabilities in production dependencies. |
-| `npm run check` | Run tests, typecheck and production build. |
-| `npm run verify` | Run the complete local verification including the production dependency audit. |
-| `npm run preview` | Preview the built editor locally. |
 
 ## Local workspaces
 
@@ -130,7 +143,7 @@ src/
   styles/        Editor styles
 
 tests/           Automated security, export, link and metadata tests
-scripts/         Local setup and update tooling
+scripts/         Local setup, repair and update tooling
 docs/            Architecture, workspace, export, hosting and release documentation
 ```
 
