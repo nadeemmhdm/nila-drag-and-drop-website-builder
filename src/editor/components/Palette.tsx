@@ -1,14 +1,95 @@
 import { useDraggable } from '@dnd-kit/core';
-import { Badge, Box, CheckSquare, Columns3, Grid3X3, Heading1, Image, Link, List, Minus, MousePointerClick, Pilcrow, PlaySquare, Quote, RectangleHorizontal, Rows3, Space, Sparkles, TextCursorInput, TextQuote, UserRound } from 'lucide-react';
+import { Badge, Box, CheckSquare, Columns3, Grid3X3, Heading1, Image, Link, List, Minus, MousePointerClick, Pilcrow, PlaySquare, Quote, RectangleHorizontal, Rows3, Search, Space, Sparkles, TextCursorInput, TextQuote, UserRound } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { EditorNodeType } from '../types';
 
-const groups: Array<{ name: string; items: Array<{ type: EditorNodeType; label: string; icon: typeof Box }> }> = [
-  { name: 'Layout', items: [{ type: 'section', label: 'Section', icon: Rows3 }, { type: 'container', label: 'Container', icon: Box }, { type: 'columns', label: 'Columns', icon: Columns3 }, { type: 'grid', label: 'Grid', icon: Grid3X3 }, { type: 'card', label: 'Card', icon: RectangleHorizontal }] },
-  { name: 'Content', items: [{ type: 'heading', label: 'Heading', icon: Heading1 }, { type: 'paragraph', label: 'Paragraph', icon: Pilcrow }, { type: 'link', label: 'Link', icon: Link }, { type: 'button', label: 'Button', icon: MousePointerClick }, { type: 'badge', label: 'Badge', icon: Badge }, { type: 'icon', label: 'Icon', icon: Sparkles }, { type: 'quote', label: 'Quote', icon: Quote }, { type: 'list', label: 'List', icon: List }] },
-  { name: 'Media', items: [{ type: 'image', label: 'Image', icon: Image }, { type: 'avatar', label: 'Avatar', icon: UserRound }, { type: 'video', label: 'Video', icon: PlaySquare }] },
-  { name: 'Forms', items: [{ type: 'input', label: 'Input', icon: TextCursorInput }, { type: 'textarea', label: 'Textarea', icon: TextQuote }, { type: 'select', label: 'Select', icon: RectangleHorizontal }, { type: 'checkbox', label: 'Checkbox', icon: CheckSquare }] },
-  { name: 'Utility', items: [{ type: 'divider', label: 'Divider', icon: Minus }, { type: 'spacer', label: 'Spacer', icon: Space }] },
+type PaletteItemDefinition = { type: EditorNodeType; label: string; description: string; icon: typeof Box };
+type PaletteGroup = { name: string; description: string; items: PaletteItemDefinition[] };
+
+const groups: PaletteGroup[] = [
+  { name: 'Layout', description: 'Structure and responsive composition', items: [
+    { type: 'section', label: 'Section', description: 'Full-width page region', icon: Rows3 },
+    { type: 'container', label: 'Container', description: 'Constrained content wrapper', icon: Box },
+    { type: 'columns', label: 'Columns', description: 'Responsive two-column layout', icon: Columns3 },
+    { type: 'grid', label: 'Grid', description: 'Responsive multi-column grid', icon: Grid3X3 },
+    { type: 'card', label: 'Card', description: 'Styled content surface', icon: RectangleHorizontal },
+  ] },
+  { name: 'Content', description: 'Typography and interactive content', items: [
+    { type: 'heading', label: 'Heading', description: 'Section or page title', icon: Heading1 },
+    { type: 'paragraph', label: 'Paragraph', description: 'Body copy and descriptions', icon: Pilcrow },
+    { type: 'link', label: 'Link', description: 'Internal or external navigation', icon: Link },
+    { type: 'button', label: 'Button', description: 'Primary call-to-action', icon: MousePointerClick },
+    { type: 'badge', label: 'Badge', description: 'Compact label or status', icon: Badge },
+    { type: 'icon', label: 'Icon', description: 'Lucide icon element', icon: Sparkles },
+    { type: 'quote', label: 'Quote', description: 'Highlighted quotation', icon: Quote },
+    { type: 'list', label: 'List', description: 'Bulleted content list', icon: List },
+  ] },
+  { name: 'Media', description: 'Visual and rich media', items: [
+    { type: 'image', label: 'Image', description: 'Responsive project image', icon: Image },
+    { type: 'avatar', label: 'Avatar', description: 'Circular profile image', icon: UserRound },
+    { type: 'video', label: 'Video', description: 'Video player or project video', icon: PlaySquare },
+  ] },
+  { name: 'Forms', description: 'Form controls and inputs', items: [
+    { type: 'input', label: 'Input', description: 'Single-line text field', icon: TextCursorInput },
+    { type: 'textarea', label: 'Textarea', description: 'Multi-line text field', icon: TextQuote },
+    { type: 'select', label: 'Select', description: 'Option selector', icon: RectangleHorizontal },
+    { type: 'checkbox', label: 'Checkbox', description: 'Boolean choice control', icon: CheckSquare },
+  ] },
+  { name: 'Utility', description: 'Spacing and visual separators', items: [
+    { type: 'divider', label: 'Divider', description: 'Horizontal separator', icon: Minus },
+    { type: 'spacer', label: 'Spacer', description: 'Responsive empty space', icon: Space },
+  ] },
 ];
 
-function PaletteItem({ type, label, icon: Icon }: { type: EditorNodeType; label: string; icon: typeof Box }) { const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `palette:${type}`, data: { source: 'palette', nodeType: type } }); return <button ref={setNodeRef} className={`palette-item${isDragging ? ' dragging' : ''}`} style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }} {...listeners} {...attributes} type="button"><Icon size={17} aria-hidden="true" /><span>{label}</span></button>; }
-export function Palette() { return <div className="palette-groups">{groups.map((group) => <section className="palette-group" key={group.name}><div className="palette-group-title">{group.name}</div><div className="palette-grid">{group.items.map((item) => <PaletteItem key={item.type} {...item} />)}</div></section>)}</div>; }
+function PaletteItem({ type, label, description, icon: Icon }: PaletteItemDefinition) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `palette:${type}`, data: { source: 'palette', nodeType: type } });
+  return (
+    <button
+      ref={setNodeRef}
+      className={`palette-item palette-item-rich${isDragging ? ' dragging' : ''}`}
+      style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
+      {...listeners}
+      {...attributes}
+      type="button"
+      title={`Drag ${label} to the canvas`}
+    >
+      <span className="palette-icon"><Icon size={17} aria-hidden="true" /></span>
+      <span className="palette-copy"><strong>{label}</strong><small>{description}</small></span>
+      <span className="palette-drag-hint">Drag</span>
+    </button>
+  );
+}
+
+export function Palette() {
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('All');
+  const categories = ['All', ...groups.map((group) => group.name)];
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return groups
+      .filter((group) => category === 'All' || group.name === category)
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !q || `${item.label} ${item.description} ${group.name}`.toLowerCase().includes(q)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [category, query]);
+  const visibleCount = filteredGroups.reduce((sum, group) => sum + group.items.length, 0);
+
+  return (
+    <div className="element-library">
+      <div className="catalog-search element-search"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search elements" /></div>
+      <div className="catalog-categories element-categories">{categories.map((item) => <button type="button" key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+      <div className="element-library-meta"><span>{visibleCount} elements</span><span>Drag into canvas</span></div>
+      <div className="palette-groups">
+        {filteredGroups.map((group) => (
+          <section className="palette-group" key={group.name}>
+            <div className="palette-group-head"><div><div className="palette-group-title">{group.name}</div><p>{group.description}</p></div><span>{group.items.length}</span></div>
+            <div className="palette-grid palette-grid-rich">{group.items.map((item) => <PaletteItem key={item.type} {...item} />)}</div>
+          </section>
+        ))}
+        {filteredGroups.length === 0 ? <div className="catalog-empty">No matching elements.</div> : null}
+      </div>
+    </div>
+  );
+}
