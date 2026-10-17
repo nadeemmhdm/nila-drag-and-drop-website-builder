@@ -111,7 +111,7 @@ export const STYLE_GROUPS: StyleControlGroup[] = [
 const controlsByGroup = Object.fromEntries(STYLE_GROUPS.map((group) => [group.id, group])) as Record<string, StyleControlGroup>;
 const pick = (groupId: string, properties: string[]) => ({ ...controlsByGroup[groupId], controls: controlsByGroup[groupId].controls.filter((control) => properties.includes(control.property)) });
 const TEXT_TYPES: EditorNodeType[] = ['heading', 'paragraph', 'link', 'button', 'badge', 'quote', 'list'];
-const CONTAINER_TYPES: EditorNodeType[] = ['section', 'container', 'row', 'columns', 'grid', 'card'];
+const CONTAINER_TYPES: EditorNodeType[] = ['section', 'container', 'div', 'row', 'columns', 'grid', 'card'];
 const FORM_TYPES: EditorNodeType[] = ['input', 'textarea', 'select', 'checkbox'];
 const MEDIA_TYPES: EditorNodeType[] = ['image', 'avatar', 'video'];
 
