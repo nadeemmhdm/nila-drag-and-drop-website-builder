@@ -1,0 +1,33 @@
+{
+  "name": "nila-drag-and-drop-website-builder",
+  "private": true,
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "description": "Local-first, open-source drag-and-drop React + Vite website builder.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -b --pretty false",
+    "check": "npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nadeemmhdm/nila-drag-and-drop-website-builder.git"
+  }
+}
