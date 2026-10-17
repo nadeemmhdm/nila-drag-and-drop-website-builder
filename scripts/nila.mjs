@@ -14,10 +14,15 @@ function run(command, args, { allowFailure = false, capture = false } = {}) {
   if (result.status !== 0 && !allowFailure) throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status}.`);
   return result;
 }
-function quoteCmdArg(value) { return `"${String(value).replaceAll('"','""')}"`; }
 function runNpm(args, options = {}) {
-  if (isWindows && existsSync(npmCli)) return run(process.execPath, [npmCli, ...args], options);
-  if (isWindows) return run(process.env.ComSpec || 'cmd.exe', ['/d','/s','/c',`npm ${args.map(quoteCmdArg).join(' ')}`], options);
+  if (isWindows) {
+    if (!existsSync(npmCli)) {
+      const error = new Error('npm-cli.js was not found next to the active Node.js installation. Reinstall Node.js 22+ with npm included.');
+      if (options.allowFailure) return { error, status: 1, stdout: '', stderr: error.message };
+      throw error;
+    }
+    return run(process.execPath, [npmCli, ...args], options);
+  }
   return run('npm', args, options);
 }
 function commandWorks(command,args=['--version']) { const result=run(command,args,{allowFailure:true,capture:true}); return !result.error&&result.status===0; }
