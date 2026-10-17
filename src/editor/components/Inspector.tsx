@@ -1,6 +1,7 @@
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Copy, Eye, EyeOff, Lock, Move, RotateCcw, Trash2, Unlock, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Copy, Eye, EyeOff, Lock, Move, RotateCcw, Trash2, Unlock, Upload, X } from 'lucide-react';
+import { useMemo, useState, type ChangeEvent } from 'react';
 import type { DeviceViewport, NilaAsset, NilaFont, NilaPage } from '../../core/project';
+import { IMAGE_ACCEPT, VIDEO_ACCEPT } from '../assetPipeline';
 import { ICON_ENTRIES } from '../iconRegistry';
 import { inferLinkType, normalizeAnchor } from '../linking';
 import { gridCellStyles, horizontalPlacementStyles, type HorizontalPlacement } from '../placement';
@@ -22,6 +23,7 @@ interface InspectorProps {
   onResetViewportStyles: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onUploadMedia: (file: File, expectedKind: 'image' | 'video') => Promise<NilaAsset>;
 }
 
 type InspectorTab = 'content' | 'style';
@@ -75,7 +77,7 @@ export function Inspector(props: InspectorProps) {
   );
 }
 
-function ContentInspector({ node, pages, assets, onPatch, onPatchProps }: InspectorProps & { node: EditorNode }) {
+function ContentInspector({ node, pages, assets, onPatch, onPatchProps, onUploadMedia }: InspectorProps & { node: EditorNode }) {
   const hasText = ['heading', 'paragraph', 'link', 'button', 'badge', 'quote'].includes(node.type);
   const hasLink = ['link', 'button'].includes(node.type);
   const hasMedia = ['image', 'avatar', 'video'].includes(node.type);
@@ -102,7 +104,7 @@ function ContentInspector({ node, pages, assets, onPatch, onPatchProps }: Inspec
       ) : null}
 
       {hasLink ? <LinkControls node={node} pages={pages} onPatchProps={onPatchProps} /> : null}
-      {hasMedia ? <MediaControls node={node} assets={assets} compatibleAssets={compatibleAssets} onPatchProps={onPatchProps} /> : null}
+      {hasMedia ? <MediaControls node={node} assets={assets} compatibleAssets={compatibleAssets} onPatchProps={onPatchProps} onUploadMedia={onUploadMedia} /> : null}
 
       {hasField ? <label>Label<input value={node.props.label ?? ''} onChange={(event) => onPatchProps({ label: event.target.value })} /></label> : null}
       {['input', 'textarea'].includes(node.type) ? <label>Placeholder<input value={node.props.placeholder ?? ''} onChange={(event) => onPatchProps({ placeholder: event.target.value })} /></label> : null}
@@ -130,6 +132,7 @@ function LinkControls({ node, pages, onPatchProps }: { node: EditorNode; pages: 
   return (
     <div className="link-builder">
       <h4>Link target</h4>
+      <div className="edit-link-note">Links stay disabled while editing. Use Preview mode to test navigation.</div>
       <label>Type
         <select value={linkType} onChange={(event) => changeLinkType(event.target.value as LinkType)}>
           <option value="page">Page</option>
@@ -163,22 +166,43 @@ function LinkControls({ node, pages, onPatchProps }: { node: EditorNode; pages: 
   );
 }
 
-function MediaControls({ node, assets, compatibleAssets, onPatchProps }: { node: EditorNode; assets: NilaAsset[]; compatibleAssets: NilaAsset[]; onPatchProps: InspectorProps['onPatchProps'] }) {
+function MediaControls({ node, assets, compatibleAssets, onPatchProps, onUploadMedia }: { node: EditorNode; assets: NilaAsset[]; compatibleAssets: NilaAsset[]; onPatchProps: InspectorProps['onPatchProps']; onUploadMedia: InspectorProps['onUploadMedia'] }) {
   const selectedAsset = assets.find((asset) => asset.id === node.props.assetId);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const expectedKind: 'image' | 'video' = node.type === 'video' ? 'video' : 'image';
+  const accept = expectedKind === 'video' ? VIDEO_ACCEPT : IMAGE_ACCEPT;
+  const upload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || busy) return;
+    setBusy(true); setError('');
+    try {
+      const asset = await onUploadMedia(file, expectedKind);
+      const stem = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+      onPatchProps({ assetId: asset.id, src: undefined, alt: node.props.alt || stem || (expectedKind === 'video' ? 'Video' : 'Image') });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Upload failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <>
+    <div className="media-controls">
+      <label className={`media-inline-upload${busy ? ' busy' : ''}`}><Upload size={14}/><span>{busy ? 'Uploading…' : `Upload local ${expectedKind}`}</span><input type="file" accept={accept} disabled={busy} onChange={upload}/></label>
+      {error ? <div className="asset-error">{error}</div> : null}
       <label>Project asset
-        <select value={node.props.assetId ?? ''} onChange={(event) => onPatchProps({ assetId: event.target.value || undefined })}>
+        <select value={node.props.assetId ?? ''} onChange={(event) => onPatchProps({ assetId: event.target.value || undefined, src: event.target.value ? undefined : node.props.src })}>
           <option value="">Use URL / placeholder</option>
           {compatibleAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
         </select>
       </label>
       {node.props.assetId
         ? <small className="asset-path-note">{selectedAsset?.projectPath ?? 'Missing project asset'}</small>
-        : <label>Source URL<input value={node.props.src ?? ''} onChange={(event) => onPatchProps({ src: event.target.value })} /></label>}
-      <label>Alt text<input value={node.props.alt ?? ''} onChange={(event) => onPatchProps({ alt: event.target.value })} /></label>
-    </>
+        : <label>Source URL<input value={node.props.src ?? ''} placeholder="https://... or leave empty" onChange={(event) => onPatchProps({ src: event.target.value })} /></label>}
+      <label>Alt text<input value={node.props.alt ?? ''} placeholder={expectedKind === 'video' ? 'Describe the video content' : 'Describe the image'} onChange={(event) => onPatchProps({ alt: event.target.value })} /></label>
+    </div>
   );
 }
 
@@ -215,7 +239,7 @@ function StyleInspector({ node, parentNode, fonts, viewport, effective, onPatchS
       gridTemplateRows: 'repeat(3, minmax(72px, auto))',
       gap: '12px',
       minHeight: String(parentEffective.minHeight ?? '280px'),
-      position: String(parentEffective.position ?? 'relative') === 'static' ? 'relative' : String(parentEffective.position ?? 'relative'),
+      position: String(parentEffective.position ?? 'static') === 'static' ? 'relative' : String(parentEffective.position ?? 'relative'),
     });
   };
 
