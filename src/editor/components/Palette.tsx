@@ -1,7 +1,8 @@
 import { useDraggable } from '@dnd-kit/core';
-import { Badge, Box, CheckSquare, Columns3, Grid3X3, Heading1, Image, Link, List, Minus, MousePointerClick, Pilcrow, PlaySquare, Quote, RectangleHorizontal, Rows3, Search, Space, Sparkles, TextCursorInput, TextQuote, UserRound } from 'lucide-react';
+import { Badge, Box, CheckSquare, Cloud, Columns3, Grid3X3, Heading1, Image, Link, List, Minus, MousePointerClick, Pilcrow, PlaySquare, Quote, RectangleHorizontal, Rows3, Search, Space, Sparkles, TextCursorInput, TextQuote, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { EditorNodeType } from '../types';
+import { ShadcnSpaceLibrary } from './ShadcnSpaceLibrary';
 
 type PaletteItemDefinition = { type: EditorNodeType; label: string; description: string; icon: typeof Box };
 type PaletteGroup = { name: string; description: string; items: PaletteItemDefinition[] };
@@ -60,7 +61,7 @@ function PaletteItem({ type, label, description, icon: Icon }: PaletteItemDefini
   );
 }
 
-export function Palette() {
+function NativePalette() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const categories = ['All', ...groups.map((group) => group.name)];
@@ -76,20 +77,31 @@ export function Palette() {
   }, [category, query]);
   const visibleCount = filteredGroups.reduce((sum, group) => sum + group.items.length, 0);
 
+  return <>
+    <div className="catalog-search element-search"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search elements" /></div>
+    <div className="catalog-categories element-categories">{categories.map((item) => <button type="button" key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+    <div className="element-library-meta"><span>{visibleCount} elements</span><span>Drag into canvas</span></div>
+    <div className="palette-groups">
+      {filteredGroups.map((group) => (
+        <section className="palette-group" key={group.name}>
+          <div className="palette-group-head"><div><div className="palette-group-title">{group.name}</div><p>{group.description}</p></div><span>{group.items.length}</span></div>
+          <div className="palette-grid palette-grid-rich">{group.items.map((item) => <PaletteItem key={item.type} {...item} />)}</div>
+        </section>
+      ))}
+      {filteredGroups.length === 0 ? <div className="catalog-empty">No matching elements.</div> : null}
+    </div>
+  </>;
+}
+
+export function Palette() {
+  const [source, setSource] = useState<'nila' | 'shadcnspace'>('nila');
   return (
     <div className="element-library">
-      <div className="catalog-search element-search"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search elements" /></div>
-      <div className="catalog-categories element-categories">{categories.map((item) => <button type="button" key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
-      <div className="element-library-meta"><span>{visibleCount} elements</span><span>Drag into canvas</span></div>
-      <div className="palette-groups">
-        {filteredGroups.map((group) => (
-          <section className="palette-group" key={group.name}>
-            <div className="palette-group-head"><div><div className="palette-group-title">{group.name}</div><p>{group.description}</p></div><span>{group.items.length}</span></div>
-            <div className="palette-grid palette-grid-rich">{group.items.map((item) => <PaletteItem key={item.type} {...item} />)}</div>
-          </section>
-        ))}
-        {filteredGroups.length === 0 ? <div className="catalog-empty">No matching elements.</div> : null}
+      <div className="library-source-tabs">
+        <button type="button" className={source === 'nila' ? 'active' : ''} onClick={() => setSource('nila')}><Box size={14} /> Nila elements</button>
+        <button type="button" className={source === 'shadcnspace' ? 'active' : ''} onClick={() => setSource('shadcnspace')}><Cloud size={14} /> ShadcnSpace MCP</button>
       </div>
+      {source === 'nila' ? <NativePalette /> : <ShadcnSpaceLibrary mode="components" />}
     </div>
   );
 }
