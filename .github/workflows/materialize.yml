@@ -40,3 +40,5 @@ jobs:
           fi
           git commit -m "feat: build Nila drag-and-drop website builder"
           git push origin HEAD:main
+
+# Trigger after workflow exists on the default branch.
