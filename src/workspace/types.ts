@@ -1,7 +1,9 @@
 import type { NilaAsset, NilaFont, NilaPage, NilaSiteSeo } from '../core/project';
 
+export type WorkspaceId = ReturnType<Crypto['randomUUID']>;
+
 export interface WorkspaceSnapshot {
-  id: string;
+  id: WorkspaceId;
   ownerFolder: string;
   name: string;
   schemaVersion: number;
