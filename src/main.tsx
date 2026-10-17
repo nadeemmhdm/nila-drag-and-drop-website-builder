@@ -10,6 +10,7 @@ import './styles/projects.css';
 import './styles/offline-library.css';
 import './styles/sidebar-collapse.css';
 import './styles/ai.css';
+import './styles/editor-pro-ux.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Nila root element was not found.');
