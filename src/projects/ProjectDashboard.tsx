@@ -1,5 +1,6 @@
 import { Clock3, FilePlus2, FolderOpen, LayoutTemplate, Plus, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { PROJECT_SCHEMA_VERSION } from '../core/constants';
 import { TEMPLATE_PRESETS, type CatalogPreset } from '../editor/catalog';
 import { EXTRA_TEMPLATE_PRESETS } from '../editor/catalogExtras';
 import { createDefaultPageSeo, createDefaultSiteSeo } from '../seo/defaults';
@@ -53,11 +54,11 @@ export function ProjectDashboard({ onOpen }: Props) {
         id,
         ownerFolder: 'local-user',
         name: cleanName,
-        schemaVersion: 10,
+        schemaVersion: PROJECT_SCHEMA_VERSION,
         pages: [{ id: pageId, name: 'Home', slug: '/', isHome: true, nodes, seo: createDefaultPageSeo(cleanName) }],
         assets: [],
         fonts: [],
-        seo: { ...createDefaultSiteSeo(), siteName: cleanName },
+        seo: createDefaultSiteSeo(cleanName),
         activePageId: pageId,
         createdAt: now,
         savedAt: now,
@@ -65,6 +66,7 @@ export function ProjectDashboard({ onOpen }: Props) {
       saveProjectMeta(id, { description: description.trim(), templateId: choice.id, installedLibraryIds: [] });
       await saveWorkspace(snapshot, true);
       await onOpen(snapshot);
+      setName(''); setDescription(''); setTemplateId('blank'); setTemplateQuery(''); setCreating(false);
     } finally {
       setBusy(false);
     }
