@@ -3,6 +3,7 @@ import type { DeviceViewport } from '../core/project';
 export type EditorNodeType =
   | 'section'
   | 'container'
+  | 'div'
   | 'row'
   | 'columns'
   | 'grid'
