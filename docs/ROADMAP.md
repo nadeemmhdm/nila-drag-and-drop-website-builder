@@ -1,31 +1,35 @@
-# Nila Roadmap — 10 Build Phases
+# Nila Product Roadmap
 
-## Phase 1 — Foundation & architecture
-React/Vite/TypeScript base, project schema, responsive viewport model, docs, CI and security baseline.
+This roadmap describes product capability rather than an implementation sequence. Items may move as security, compatibility and contributor needs evolve.
 
-## Phase 2 — Editor + drag-and-drop engine
-Canvas, selection model, nesting, drop zones, layers, copy/paste, duplicate, delete, undo/redo and keyboard shortcuts.
+## Available in the current beta
 
-## Phase 3 — Elements, sections & template catalog
-Native elements plus vendored free/open components, complete sections and starter templates. External registries are build/sync sources, not required at runtime.
+- Visual nested drag-and-drop editing with undo/redo, layers and responsive viewports.
+- Element, section and starter-template catalogs.
+- Advanced style controls with device-specific overrides.
+- Multi-page sites and structured navigation.
+- Project-local media, fonts and icons.
+- SEO/AEO/GEO configuration, auditing and web-discovery file generation.
+- Sandboxed preview, standalone source generation, ZIP export and opt-in GitHub export.
+- IndexedDB local workspaces, OPFS mirroring where supported, autosave and backups.
+- Cross-platform local setup/update tooling.
+- Trust-boundary validation, automated tests and production dependency auditing.
 
-## Phase 4 — Style inspector + responsive controls
-Layout, spacing, typography, color, borders, effects, transforms, breakpoints and device-specific overrides.
+## Stabilization targets
 
-## Phase 5 — Multi-page routing + links
-Page manager, nested routes, global header/footer, internal links, external links, anchors and navigation generation.
+- Broader browser compatibility testing for workspace persistence and offline behavior.
+- Migration tooling for future project-schema changes.
+- More comprehensive accessibility and keyboard-flow testing.
+- Exported-site integration/build tests across representative templates.
+- Performance profiling for very large pages and asset-heavy workspaces.
+- Expanded original/open component and template catalog with provenance metadata.
 
-## Phase 6 — Assets, fonts, icons & upload pipeline
-Project-local asset library, safe image/SVG handling, logo uploads, font files and icon browser. Exported assets are copied to the generated website's asset folders.
+## Longer-term candidates
 
-## Phase 7 — SEO, AEO, GEO & web metadata
-Page metadata, structured data, canonical URLs, Open Graph, sitemap, robots.txt, security.txt and llms.txt generation/customization.
+- Optional desktop packaging with explicit filesystem workspace permissions.
+- Optional hosted collaboration while preserving local-first projects.
+- Additional export adapters and deployment targets.
+- Plugin/extension APIs with explicit capability boundaries.
+- Visual form integrations with clear backend ownership and secret isolation.
 
-## Phase 8 — Preview, ZIP & GitHub export
-Sandboxed preview, generated React/Vite code, ZIP download and GitHub repository export/update workflow.
-
-## Phase 9 — Offline installer/updater + local workspaces
-One-command setup, dependency checks, compatible update flow, per-user/per-project workspace folders, backup/import and offline application behavior.
-
-## Phase 10 — Security hardening, tests, docs & release
-Threat-model verification, file/input validation, automated tests, export build tests, accessibility checks, release docs and open-source release preparation.
+Roadmap items are not commitments or release guarantees. Security and data integrity take priority over feature expansion.

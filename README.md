@@ -4,111 +4,164 @@
 
 Nila is a local-first, open-source visual website builder for creating responsive React + Vite + TypeScript websites while keeping ownership of the generated source code.
 
-> **Project status:** Nila is under active development. The editor, project schema, and public APIs may evolve before a stable release.
+> **Release status:** `0.10.0-beta.1`. Project files and editor behavior may still evolve before the first stable release.
 
-## Overview
+## What Nila provides
 
-Nila is designed to make visual website building practical without locking projects to a hosted platform. The editor stores website structure as typed project data rather than arbitrary persisted HTML, providing a safer and more maintainable foundation for editing, previewing, exporting, and extending generated websites.
+- Visual drag-and-drop editing with nested layout containers, layers, selection, copy/duplicate, delete, lock, hide, undo and redo.
+- Responsive desktop, tablet and mobile editing with inherited style overrides.
+- Reusable elements, complete sections and starter templates from a local catalog.
+- Multi-page sites with slugs, home-page management, internal navigation, anchors and safe external links.
+- Project-local images, video, fonts and a searchable Lucide icon library.
+- SEO, AEO and GEO metadata with canonical URLs, Open Graph, JSON-LD, sitemap, robots, `llms.txt` and `security.txt` generation.
+- Isolated generated-site preview, standalone React/Vite source generation, ZIP download and optional GitHub export.
+- Local workspaces backed by IndexedDB with OPFS mirroring where supported, autosave, manual backups and `.nila.json` import/export.
+- Production offline caching after the application has been loaded successfully at least once.
+- No analytics or telemetry enabled by default.
 
-## Highlights
-
-- Visual drag-and-drop website editing.
-- Nested sections, containers, and content elements.
-- Typed editor document model for safer project manipulation.
-- Layers navigation and element selection.
-- Duplicate, delete, lock, hide, undo, and redo controls.
-- Mobile, tablet, and desktop editor viewports.
-- Zoom controls and responsive-style foundations.
-- Inspector-based content and basic style editing.
-- Local-first architecture with no analytics or telemetry enabled by default.
-- Generated websites are intended to remain independent of Nila at runtime.
-- Extensible architecture for components, templates, assets, exporters, and integrations.
+Generated websites do **not** require the Nila editor at runtime.
 
 ## Requirements
 
 - Node.js **22 or newer**.
 - npm **10 or newer** is recommended.
-- Git is recommended for contributing and version control.
+- Git is recommended for updates and contribution workflows.
 
-## Getting started
+## Local setup
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/nadeemmhdm/nila-drag-and-drop-website-builder.git
 cd nila-drag-and-drop-website-builder
+```
+
+### Windows
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+### Linux / macOS
+
+```bash
+bash ./setup.sh
+```
+
+The setup scripts verify Node.js, install/update dependencies, run tests, typecheck, production build validation and a production-dependency security audit.
+
+Manual setup is also supported:
+
+```bash
 npm install
+npm run verify
 npm run dev
 ```
 
-The development server listens on `127.0.0.1` by default. Open:
+The development server binds to `127.0.0.1` by default. Open `http://127.0.0.1:5173`.
 
-```text
-http://127.0.0.1:5173
-```
-
-## Available scripts
+## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the local Vite development server. |
-| `npm run typecheck` | Run the TypeScript compiler without emitting output. |
+| `npm run test` | Run automated Vitest suites. |
+| `npm run typecheck` | Run strict TypeScript validation. |
 | `npm run build` | Typecheck and create a production build. |
-| `npm run preview` | Preview the production build locally. |
-| `npm run check` | Run the repository's typecheck and production build validation. |
+| `npm run audit:prod` | Fail on high/critical vulnerabilities in production dependencies. |
+| `npm run check` | Run tests, typecheck and production build. |
+| `npm run verify` | Run the complete local verification including the production dependency audit. |
+| `npm run preview` | Preview the built editor locally. |
 
-## Project structure
+## Local workspaces
+
+Nila uses browser-managed local storage rather than unrestricted filesystem access. IndexedDB is authoritative; supported browsers also receive an Origin Private File System mirror using a structure equivalent to:
+
+```text
+workspace/
+  <local-user>/
+    <project-id>/
+      project.nila.json
+      backups/
+```
+
+The Local panel supports workspace switching, autosave, manual versioned backups, restore, import and export. See [Local workspaces](docs/LOCAL_WORKSPACES.md).
+
+## Exported websites
+
+The export pipeline creates a standalone React + Vite + TypeScript project containing:
+
+- Page-specific HTML entry files.
+- Generated React renderer and responsive CSS.
+- Project-local assets and fonts.
+- Search/discovery files under `public/`.
+- `.nila/project.json` provenance metadata.
+- A visible “Built with Nila Website Builder” credit.
+
+ZIP export runs entirely in the browser. GitHub export is opt-in and uses the GitHub API only after the user supplies repository details and a token. The token is kept in component memory only and is never written into generated files or workspaces. See [Export format](docs/EXPORT_FORMAT.md).
+
+## Security model
+
+Project files, uploads, URLs and integration input cross trust boundaries and are validated accordingly. Notable controls include:
+
+- Structured project state instead of persisted executable HTML.
+- File extension, MIME and signature checks for uploaded assets.
+- Explicit rejection of SVG uploads until sanitization is available.
+- Unsafe URL-scheme blocking.
+- Sandboxed preview without same-origin privileges.
+- Bounded workspace imports with schema, tree-depth, node-count, asset-budget and path validation.
+- Traversal-resistant generated and GitHub export paths.
+- Runtime-only integration credentials.
+- CI tests, production dependency audit, TypeScript checks and production builds.
+
+See [Security Policy](SECURITY.md) and [Threat Model](docs/THREAT_MODEL.md).
+
+## Repository structure
 
 ```text
 src/
-  core/                  Core constants and project-level types
-  editor/                Visual editor engine and document model
-    components/          Canvas, inspector, layers, and palette UI
-    EditorShell.tsx      Main editor workspace
-    history.ts           Undo/redo history utilities
-    model.ts             Editor tree operations
-    types.ts             Typed editor schema
-  styles/                Application styles
+  core/          Project-level types and constants
+  editor/        Visual editor, schema operations and UI
+  exporter/      Preview, standalone source, ZIP and GitHub export
+  offline/       Offline application bootstrap
+  security/      Trust-boundary validation
+  seo/           SEO/AEO/GEO audit and generators
+  workspace/     IndexedDB/OPFS local workspace persistence
+  styles/        Editor styles
 
-docs/
-  ARCHITECTURE.md        Architecture and design boundaries
-  ROADMAP.md             Planned product development
-  THREAT_MODEL.md        Security threat model
+tests/           Automated security, export, link and metadata tests
+scripts/         Local setup and update tooling
+docs/            Architecture, workspace, export, hosting and release documentation
 ```
 
 ## Engineering principles
 
-1. **Local first** — core editing should remain usable without requiring a hosted account.
-2. **Offline capable** — after required local dependencies are installed, core editing should not depend on a remote service.
-3. **Source ownership** — exported websites should not require Nila to run.
-4. **Safe by default** — untrusted content must be validated and preview execution must be isolated from the editor.
-5. **Responsive by design** — mobile, tablet, and desktop experiences are first-class concerns.
-6. **Explicit integrations** — network services and external integrations must be opt-in and clearly documented.
-7. **Open-source provenance** — redistributed third-party code and assets must retain applicable licenses and attribution.
+1. **Local first** — core editing does not require a hosted account.
+2. **Offline capable** — after initial setup/load, core editing should remain useful without a remote service.
+3. **Source ownership** — generated sites remain independent of Nila.
+4. **Safe by default** — untrusted data is validated at trust boundaries and preview execution is isolated.
+5. **Responsive by design** — desktop, tablet and mobile are first-class editor targets.
+6. **Explicit integrations** — network actions are opt-in and credentials are not persisted implicitly.
+7. **Open-source provenance** — redistributed third-party material must retain applicable licenses and attribution.
 
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
-- [Roadmap](docs/ROADMAP.md)
+- [Product roadmap](docs/ROADMAP.md)
+- [Local workspaces](docs/LOCAL_WORKSPACES.md)
+- [Export format](docs/EXPORT_FORMAT.md)
+- [Self-hosting](docs/SELF_HOSTING.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Security policy](SECURITY.md)
 - [Privacy](PRIVACY.md)
-- [Contributing guide](CONTRIBUTING.md)
+- [Contributing](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Support](SUPPORT.md)
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Changes should be focused, security-conscious, legally redistributable, and validated with `npm run check`.
-
-## Security
-
-Please do not disclose vulnerabilities through public issues. Follow the private reporting guidance in [SECURITY.md](SECURITY.md).
-
-## Privacy
-
-The upstream project is designed without analytics or telemetry enabled by default. See [PRIVACY.md](PRIVACY.md) for the project's privacy principles.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Changes should be focused, security-conscious, legally redistributable and pass `npm run verify`.
 
 ## License
 
-Nila is licensed under the [Apache License 2.0](LICENSE). Contributions submitted for inclusion in the project are handled under the terms described by that license unless explicitly stated otherwise.
-
-Third-party components, templates, fonts, icons, and assets may be subject to their own licenses and attribution requirements. Those notices must be preserved where applicable.
+Nila is licensed under the [Apache License 2.0](LICENSE). The canonical license text is kept unchanged. Third-party components, templates, fonts, icons and assets may have separate attribution requirements that must be preserved.

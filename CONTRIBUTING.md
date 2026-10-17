@@ -1,132 +1,84 @@
 # Contributing to Nila
 
-Thank you for contributing to Nila. Contributions may include bug fixes, editor improvements, components, templates, documentation, tests, accessibility improvements, security hardening, and development tooling.
-
-Please keep contributions focused, reviewable, secure, and legally redistributable.
+Thank you for contributing. Changes may include editor improvements, components, templates, tests, documentation, accessibility work, security hardening and development tooling. Keep contributions focused, reviewable, secure and legally redistributable.
 
 ## Before you start
 
-- Read the [README](README.md) for project goals and local setup.
-- Review [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before making architectural changes.
+- Read the [README](README.md) and [Architecture](docs/ARCHITECTURE.md).
 - Review [SECURITY.md](SECURITY.md) and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for security-sensitive work.
-- Search existing issues and pull requests before starting duplicate work.
-- Discuss large architectural, dependency, schema, or product changes before investing in a large implementation.
+- Search existing issues and pull requests before duplicating work.
+- Discuss large schema, architecture or dependency changes before investing in a large implementation.
 
-## Development requirements
+## Requirements and setup
 
-- Node.js **22 or newer**.
-- npm **10 or newer** is recommended.
-- Git for source control.
-
-## Local setup
+Node.js 22+ is required. npm 10+ is recommended.
 
 ```bash
 git clone https://github.com/nadeemmhdm/nila-drag-and-drop-website-builder.git
 cd nila-drag-and-drop-website-builder
 npm install
+npm run verify
 npm run dev
 ```
 
-Before opening a pull request, run:
+`npm run verify` runs automated tests, TypeScript validation, the production build and the production dependency security audit.
 
-```bash
-npm run check
-```
+## Pull-request workflow
 
-This validates the TypeScript project and production build.
+1. Branch from the latest `main`.
+2. Use a focused branch name such as `feat/...`, `fix/...`, `docs/...`, `refactor/...` or `security/...`.
+3. Keep one logical change per pull request where practical.
+4. Add or update tests for behavior and security boundaries affected by the change.
+5. Run `npm run verify` locally.
+6. Open a pull request with rationale, testing notes, compatibility impact and relevant security considerations.
+7. Resolve review feedback on the existing branch.
 
-## Repository structure
-
-```text
-src/core/              Core constants and project-level types
-src/editor/            Editor state, schema, operations, and workspace UI
-src/editor/components/ Canvas, inspector, layers, and palette components
-src/styles/            Application styles
-docs/                  Architecture, roadmap, and security design documents
-.github/                CI, issue templates, and pull-request templates
-```
-
-## Development workflow
-
-1. Create a branch from the latest `main` branch.
-2. Use a clear branch name such as `feat/...`, `fix/...`, `docs/...`, `refactor/...`, or `security/...`.
-3. Keep each pull request focused on one logical change.
-4. Rebase or update your branch when needed so validation reflects current `main`.
-5. Run `npm run check` locally.
-6. Open a pull request with a clear summary, rationale, testing notes, and any security or compatibility considerations.
-7. Address review comments with additional commits or updates to the existing branch.
-
-Direct changes to protected branches should be avoided; use the pull-request workflow.
+Do not bypass protected-branch controls for normal development.
 
 ## Code expectations
 
-Contributions should:
+Contributions should preserve strict TypeScript safety, structured serializable editor data, local-first behavior, accessible interaction patterns, responsive behavior and explicit network integrations. Avoid arbitrary executable project state, hidden telemetry, unnecessary type escapes and unrelated refactors.
 
-- Preserve strict TypeScript safety and avoid unnecessary type escapes.
-- Keep editor project data structured and serializable.
-- Avoid storing arbitrary executable HTML or JavaScript as trusted project state.
-- Keep UI behavior accessible and keyboard-friendly where applicable.
-- Preserve responsive behavior across supported editor viewports.
-- Avoid hidden telemetry, tracking, or unexpected network access.
-- Keep external integrations explicit and least-privileged.
-- Add comments for non-obvious security or architectural decisions rather than restating simple code.
-- Avoid unrelated refactors in a focused bug fix or feature pull request.
+## Tests
+
+Tests live under `tests/` and use Vitest. Security-sensitive parsers, URL handling, project generation and metadata generation should have deterministic unit coverage. A bug fix should include a regression test when the affected behavior can be isolated reasonably.
+
+Run:
+
+```bash
+npm run test
+npm run typecheck
+npm run build
+npm run audit:prod
+```
 
 ## Dependencies
 
-New dependencies increase maintenance and supply-chain risk. Add a dependency only when it provides clear value that would be costly or error-prone to implement locally.
+New dependencies increase supply-chain and maintenance risk. Prefer actively maintained packages with a clear license and provenance. Keep dependency scope small, avoid unnecessary runtime network access and explain significant additions in the pull request.
 
-When adding or upgrading a dependency:
+## Third-party components and assets
 
-- Prefer actively maintained packages with a clear license and provenance.
-- Keep the dependency scope as small as practical.
-- Avoid packages that require unnecessary runtime network access.
-- Explain significant new dependencies in the pull request.
-- Confirm compatibility with the repository's supported Node.js version and build process.
+Only contribute material Nila may legally redistribute. Do not copy paid, proprietary or source-restricted components without explicit rights. Preserve required copyright, license and attribution notices for open-source code, fonts, icons and media.
 
-## Components, templates, fonts, icons, and assets
+## Security-sensitive changes
 
-Only contribute material that the project is legally allowed to redistribute.
+Treat workspace files, uploads, registry data, URLs, preview content, export paths and integration credentials as untrusted. Validation belongs at the trust boundary, not only at the final rendering layer.
 
-- Do not copy paid, proprietary, or source-restricted components without explicit redistribution rights.
-- Preserve copyright, license, and attribution notices required by third-party licenses.
-- Clearly document the source and license of imported open-source material when attribution is required.
-- Do not remove upstream license notices from adapted code.
-- Prefer original assets or assets with licenses compatible with project redistribution.
+Never commit credentials, secrets, personal data or machine-specific private paths. For vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of publishing exploit details.
 
-## Security-sensitive contributions
+## Pull-request checklist
 
-Treat user-controlled input, uploaded files, remote registry data, URLs, preview content, project paths, and integration credentials as untrusted.
-
-Do not introduce:
-
-- `eval` or equivalent arbitrary code execution.
-- Unsanitized rich HTML or SVG insertion.
-- Unsafe URL schemes.
-- Hard-coded credentials or tokens.
-- Secrets inside generated site exports.
-- Path traversal outside a permitted project workspace.
-- Silent remote execution of registry-provided source code.
-
-For vulnerabilities, do **not** open a public issue containing exploit details. Follow [SECURITY.md](SECURITY.md).
-
-## Pull request checklist
-
-Before requesting review, confirm that:
-
-- [ ] The change is focused and clearly described.
-- [ ] `npm run check` passes.
-- [ ] User-visible behavior is documented where necessary.
-- [ ] Security boundaries affected by the change were considered.
-- [ ] No credentials, secrets, personal data, or machine-specific paths were committed.
-- [ ] New third-party code or assets are legally redistributable and properly attributed.
+- [ ] `npm run verify` passes.
+- [ ] Behavior changes have appropriate tests.
+- [ ] Security boundaries affected by the change were reviewed.
+- [ ] No credentials, secrets, personal data or machine-specific private paths were committed.
+- [ ] New third-party material is legally redistributable and properly attributed.
 - [ ] Accessibility and responsive behavior were considered for UI changes.
-- [ ] Breaking schema or architecture changes are explicitly called out.
+- [ ] Breaking schema or architecture changes are documented.
+- [ ] User-facing documentation is updated when necessary.
 
 ## Licensing of contributions
 
-Unless you explicitly state otherwise, contributions intentionally submitted for inclusion in Nila are provided under the terms described by the project's [Apache License 2.0](LICENSE), consistent with the license's contribution provisions.
+Unless explicitly stated otherwise, contributions intentionally submitted for inclusion in Nila are provided under the terms described by the project's [Apache License 2.0](LICENSE), consistent with its contribution provisions.
 
-## Community standards
-
-Participation in the project is subject to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Participation is subject to the [Code of Conduct](CODE_OF_CONDUCT.md).
