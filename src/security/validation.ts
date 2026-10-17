@@ -8,7 +8,7 @@ export const MAX_NODES = 10_000;
 export const MAX_NODE_DEPTH = 32;
 export const MAX_ASSETS = 256;
 
-const NODE_TYPES = new Set(['section','container','columns','grid','card','heading','paragraph','link','button','badge','icon','image','avatar','video','quote','list','divider','spacer','input','textarea','select','checkbox']);
+const NODE_TYPES = new Set(['section','container','row','columns','grid','card','heading','paragraph','link','button','badge','icon','image','avatar','video','quote','list','divider','spacer','input','textarea','select','checkbox']);
 const ASSET_EXTENSIONS: Record<string, 'image'|'video'|'font'> = { png:'image',jpg:'image',jpeg:'image',webp:'image',gif:'image',mp4:'video',webm:'video',woff2:'font',woff:'font',ttf:'font',otf:'font' };
 const DANGEROUS_KEYS = new Set(['__proto__','prototype','constructor']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -21,6 +21,7 @@ function text(value: unknown, label: string, max = 100_000): string {
   if (typeof value !== 'string' || value.length > max) throw new Error(`${label} is invalid or too large.`);
   return value;
 }
+function optionalText(value: unknown, label: string, max = 100_000): string | undefined { return value === undefined ? undefined : text(value,label,max); }
 function bool(value: unknown, label: string): boolean { if (typeof value !== 'boolean') throw new Error(`${label} must be boolean.`); return value; }
 function safeKeys(value: Record<string, unknown>, label: string, maxKeys = 100) {
   const keys = Object.keys(value);
@@ -81,8 +82,9 @@ function validatePageSeo(value: unknown) {
 }
 
 function validateSiteSeo(value: unknown) {
-  const seo=record(value,'seo'); safeKeys(seo,'seo',20);
+  const seo=record(value,'seo'); safeKeys(seo,'seo',24);
   for(const key of ['siteName','baseUrl','language','defaultDescription','author','organizationName','organizationUrl','llmsSummary']) text(seo[key],`seo.${key}`,100_000);
+  optionalText(seo.browserTitle,'seo.browserTitle',1_000); optionalText(seo.copyrightText,'seo.copyrightText',4_000); optionalText(seo.faviconAssetId,'seo.faviconAssetId',128);
   stringArray(seo.socialProfiles,'seo.socialProfiles',100,2_000); stringArray(seo.topics,'seo.topics',100,2_000);
   if(seo.organizationLogoAssetId!==undefined) text(seo.organizationLogoAssetId,'seo.organizationLogoAssetId',128);
   const robots=record(seo.robots,'seo.robots'); bool(robots.allowIndexing,'seo.robots.allowIndexing'); stringArray(robots.disallow,'seo.robots.disallow',200,2_000);
@@ -117,7 +119,9 @@ function validateAsset(value: unknown): { id: string; kind: string; size: number
   const size=asset.size; if(typeof size!=='number'||!Number.isSafeInteger(size)||size<=0) throw new Error('Asset size is invalid.');
   const mime=text(asset.mimeType,'asset.mimeType',120); if(/(?:svg|html|javascript)/i.test(mime)) throw new Error('Unsafe asset MIME type.');
   const dataUrl=text(asset.dataUrl,'asset.dataUrl',Math.ceil(size*1.5)+2_048); if(!dataUrl.startsWith(`data:${mime};base64,`)||!signatureOk(dataUrl,ext)) throw new Error('Asset data or signature is invalid.');
-  const expected=`src/assets/${kind==='font'?'fonts':'media'}/${fileName}`; if(asset.projectPath!==expected) throw new Error('Asset project path is invalid.');
+  const legacy=`src/assets/${kind==='font'?'fonts':'media'}/${fileName}`;
+  const current=kind==='font'?`src/assets/fonts/${fileName}`:`public/assets/media/${fileName}`;
+  if(asset.projectPath!==legacy&&asset.projectPath!==current) throw new Error('Asset project path is invalid.');
   text(asset.name,'asset.name',500); validIso(asset.createdAt,'asset.createdAt');
   return {id,kind,size};
 }

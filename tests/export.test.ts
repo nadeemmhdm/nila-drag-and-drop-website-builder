@@ -45,7 +45,21 @@ describe('generated React project',()=>{
     expect(pageView).toContain('export function PageView');
     expect(pageView).not.toContain('`meta[name=');
     expect(pageView).not.toContain('${name}');
+    expect(pageView).toContain('All rights reserved.');
+    expect(pageView).toContain('Built with Nila Website Builder');
     expect(home).toContain('export default function HomePage()');
     expect(about).toContain('export default function AboutPage()');
+  });
+  it('exports uploaded media only through public assets and supports favicon',()=>{
+    const input=exportFixture();
+    input.assets.push({id:'logo-asset',name:'logo.png',fileName:'logo.png',kind:'image',mimeType:'image/png',size:8,dataUrl:'data:image/png;base64,iVBORw0KGgo=',projectPath:'public/assets/media/logo.png',createdAt:new Date().toISOString()});
+    input.seo.faviconAssetId='logo-asset';
+    input.seo.browserTitle='Custom Browser Title';
+    const files=Object.fromEntries(generateProjectFiles(input).map((file)=>[file.path,file]));
+    expect(files['public/assets/media/logo.png']).toBeTruthy();
+    expect(files['src/assets/media/logo.png']).toBeUndefined();
+    expect(String(files['src/assets.ts'].content)).toContain('/assets/media/logo.png');
+    expect(String(files['index.html'].content)).toContain('rel="icon"');
+    expect(String(files['index.html'].content)).toContain('/assets/media/logo.png');
   });
 });

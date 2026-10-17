@@ -31,9 +31,9 @@ export function absolutePageUrl(site: NilaSiteSeo, page: NilaPage): string {
   return `${base}${routeForSeoPage(page) === '/' ? '/' : routeForSeoPage(page)}`;
 }
 
-function assetPublicUrl(site: NilaSiteSeo, asset?: NilaAsset): string {
+export function assetPublicUrl(site: NilaSiteSeo, asset?: NilaAsset): string {
   if (!asset) return '';
-  const relative = asset.projectPath.replace(/^src\/assets\//, 'assets/').replace(/^\/+/, '');
+  const relative = asset.kind === 'font' ? `assets/fonts/${asset.fileName}` : `assets/media/${asset.fileName}`;
   const base = normalizeBaseUrl(site.baseUrl);
   return base ? `${base}/${relative}` : `/${relative}`;
 }
@@ -158,13 +158,15 @@ export function generateJsonLd(site: NilaSiteSeo, page: NilaPage, assets: NilaAs
 }
 
 export function generateHeadMarkup(site: NilaSiteSeo, page: NilaPage, assets: NilaAsset[]): string {
-  const title = page.seo.title || page.name;
+  const title = page.seo.title || site.browserTitle || page.name;
   const description = page.seo.description || site.defaultDescription;
   const canonical = absolutePageUrl(site, page);
   const ogImage = assets.find((asset) => asset.id === page.seo.ogImageAssetId);
+  const favicon = assets.find((asset) => asset.id === site.faviconAssetId && asset.kind === 'image');
   const robots = `${page.seo.index && site.robots.allowIndexing ? 'index' : 'noindex'}, ${page.seo.follow ? 'follow' : 'nofollow'}`;
   const lines = [
     `<title>${htmlEscape(title)}</title>`,
+    favicon ? `<link rel="icon" href="${htmlEscape(assetPublicUrl(site, favicon))}" />` : '',
     description ? `<meta name="description" content="${htmlEscape(description)}" />` : '',
     `<meta name="robots" content="${robots}" />`,
     normalizeBaseUrl(site.baseUrl) ? `<link rel="canonical" href="${htmlEscape(canonical)}" />` : '',

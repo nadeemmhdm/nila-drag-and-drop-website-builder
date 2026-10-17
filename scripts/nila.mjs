@@ -7,26 +7,34 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(root);
 const isWindows = process.platform === 'win32';
 const npmCli = resolve(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
-const NODE_COMMAND = isWindows ? 'node.exe' : 'node';
 
-function execute(command, args, { allowFailure = false, capture = false } = {}) {
-  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit', shell: false });
+function options(capture = false) {
+  return { cwd: root, encoding: 'utf8', stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit', shell: false };
+}
+function finish(result, label, allowFailure = false) {
   if (result.error) { if (allowFailure) return result; throw result.error; }
-  if (result.status !== 0 && !allowFailure) throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status}.`);
+  if (result.status !== 0 && !allowFailure) throw new Error(`${label} failed with exit code ${result.status}.`);
   return result;
 }
-function runGit(args, options = {}) { return execute('git', args, options); }
-function runNode(args, options = {}) { return execute(NODE_COMMAND, args, options); }
-function runNpm(args, options = {}) {
+function runGit(args, { allowFailure = false, capture = false } = {}) {
+  return finish(spawnSync('git', args, options(capture)), `git ${args.join(' ')}`, allowFailure);
+}
+function runNode(args, { allowFailure = false, capture = false } = {}) {
+  const result = isWindows
+    ? spawnSync('node.exe', args, options(capture))
+    : spawnSync('node', args, options(capture));
+  return finish(result, `node ${args.join(' ')}`, allowFailure);
+}
+function runNpm(args, { allowFailure = false, capture = false } = {}) {
   if (isWindows) {
     if (!existsSync(npmCli)) {
       const error = new Error('npm-cli.js was not found next to the active Node.js installation. Reinstall Node.js 22+ with npm included.');
-      if (options.allowFailure) return { error, status: 1, stdout: '', stderr: error.message };
+      if (allowFailure) return { error, status: 1, stdout: '', stderr: error.message };
       throw error;
     }
-    return runNode([npmCli, ...args], options);
+    return runNode([npmCli, ...args], { allowFailure, capture });
   }
-  return execute('npm', args, options);
+  return finish(spawnSync('npm', args, options(capture)), `npm ${args.join(' ')}`, allowFailure);
 }
 function gitWorks() { const result = runGit(['--version'], { allowFailure: true, capture: true }); return !result.error && result.status === 0; }
 function npmWorks() { const result = runNpm(['--version'], { allowFailure: true, capture: true }); return !result.error && result.status === 0; }

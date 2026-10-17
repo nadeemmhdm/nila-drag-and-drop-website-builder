@@ -19,9 +19,11 @@ export function createDefaultPageSeo(name: string): NilaPageSeo {
   };
 }
 
-export function createDefaultSiteSeo(): NilaSiteSeo {
+export function createDefaultSiteSeo(siteName = 'Untitled Site'): NilaSiteSeo {
+  const cleanName = siteName.trim() || 'Untitled Site';
   return {
-    siteName: 'Untitled Site',
+    siteName: cleanName,
+    browserTitle: cleanName,
     baseUrl: '',
     language: 'en',
     defaultDescription: '',
@@ -41,5 +43,6 @@ export function createDefaultSiteSeo(): NilaSiteSeo {
       hiring: '',
       preferredLanguages: 'en',
     },
+    copyrightText: `© ${new Date().getFullYear()} ${cleanName}. All rights reserved.`,
   };
 }
