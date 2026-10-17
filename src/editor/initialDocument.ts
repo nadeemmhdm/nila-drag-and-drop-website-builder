@@ -1,4 +1,5 @@
 import type { DeviceViewport, NilaPage } from '../core/project';
+import { createDefaultPageSeo } from '../seo/defaults';
 import { createNode } from './model';
 
 export interface InitialEditorState {
@@ -26,6 +27,7 @@ export function createInitialEditorState(): InitialEditorState {
     slug: 'home',
     isHome: true,
     nodes: [section],
+    seo: createDefaultPageSeo('Home'),
   };
 
   return {
