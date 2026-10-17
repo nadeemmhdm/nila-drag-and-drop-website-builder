@@ -1,0 +1,55 @@
+import type { WorkspaceBackup, WorkspaceSnapshot } from './types';
+
+const DB_NAME='nila-local-workspaces';
+const DB_VERSION=1;
+const WORKSPACES='workspaces';
+const BACKUPS='backups';
+const SETTINGS='settings';
+const ACTIVE_KEY='active-workspace';
+const MAX_BACKUPS=10;
+
+function request<T>(req: IDBRequest<T>): Promise<T>{return new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error??new Error('IndexedDB request failed.'));});}
+function transactionDone(tx:IDBTransaction):Promise<void>{return new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error??new Error('IndexedDB transaction failed.'));tx.onabort=()=>reject(tx.error??new Error('IndexedDB transaction aborted.'));});}
+
+function openDb():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(WORKSPACES))db.createObjectStore(WORKSPACES,{keyPath:'id'});if(!db.objectStoreNames.contains(BACKUPS))db.createObjectStore(BACKUPS,{keyPath:'id'});if(!db.objectStoreNames.contains(SETTINGS))db.createObjectStore(SETTINGS,{keyPath:'key'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error??new Error('Unable to open Nila workspace database.'));});}
+
+const safeSegment=(value:string)=>value.trim().replace(/[^a-zA-Z0-9._-]/g,'-').replace(/^-+|-+$/g,'')||'local';
+
+async function mirrorOpfs(snapshot:WorkspaceSnapshot,backup=false):Promise<void>{
+  try{
+    const storage=navigator.storage as StorageManager & {getDirectory?:()=>Promise<FileSystemDirectoryHandle>};
+    if(typeof storage.getDirectory!=='function')return;
+    const root=await storage.getDirectory();
+    const workspace=await root.getDirectoryHandle('workspace',{create:true});
+    const owner=await workspace.getDirectoryHandle(safeSegment(snapshot.ownerFolder),{create:true});
+    const project=await owner.getDirectoryHandle(safeSegment(snapshot.id),{create:true});
+    const target=backup?await project.getDirectoryHandle('backups',{create:true}):project;
+    const fileName=backup?`${snapshot.savedAt.replace(/[:.]/g,'-')}.nila.json`:'project.nila.json';
+    const handle=await target.getFileHandle(fileName,{create:true});
+    const writable=await handle.createWritable();
+    await writable.write(JSON.stringify(snapshot,null,2));
+    await writable.close();
+  }catch{ /* OPFS is best-effort; IndexedDB remains authoritative. */ }
+}
+
+export async function saveWorkspace(snapshot:WorkspaceSnapshot,createBackup=false):Promise<void>{
+  const db=await openDb();
+  const tx=db.transaction([WORKSPACES,SETTINGS,...(createBackup?[BACKUPS]:[])],'readwrite');
+  tx.objectStore(WORKSPACES).put(snapshot);
+  tx.objectStore(SETTINGS).put({key:ACTIVE_KEY,value:snapshot.id});
+  if(createBackup){const backup:WorkspaceBackup={id:`${snapshot.id}:${Date.now()}`,workspaceId:snapshot.id,savedAt:snapshot.savedAt,snapshot};tx.objectStore(BACKUPS).put(backup);}
+  await transactionDone(tx); db.close();
+  if(createBackup) await pruneBackups(snapshot.id);
+  await mirrorOpfs(snapshot,createBackup);
+}
+
+export async function loadWorkspace(id:string):Promise<WorkspaceSnapshot|null>{const db=await openDb();const value=await request(db.transaction(WORKSPACES).objectStore(WORKSPACES).get(id));db.close();return (value as WorkspaceSnapshot|undefined)??null;}
+export async function listWorkspaces():Promise<WorkspaceSnapshot[]>{const db=await openDb();const values=await request(db.transaction(WORKSPACES).objectStore(WORKSPACES).getAll()) as WorkspaceSnapshot[];db.close();return values.sort((a,b)=>b.savedAt.localeCompare(a.savedAt));}
+export async function deleteWorkspace(id:string):Promise<void>{const db=await openDb();const tx=db.transaction([WORKSPACES],'readwrite');tx.objectStore(WORKSPACES).delete(id);await transactionDone(tx);db.close();}
+export async function loadLastWorkspace():Promise<WorkspaceSnapshot|null>{const db=await openDb();const setting=await request(db.transaction(SETTINGS).objectStore(SETTINGS).get(ACTIVE_KEY)) as {key:string;value:string}|undefined;db.close();return setting?.value?loadWorkspace(setting.value):null;}
+export async function listBackups(workspaceId:string):Promise<WorkspaceBackup[]>{const db=await openDb();const values=await request(db.transaction(BACKUPS).objectStore(BACKUPS).getAll()) as WorkspaceBackup[];db.close();return values.filter(item=>item.workspaceId===workspaceId).sort((a,b)=>b.savedAt.localeCompare(a.savedAt));}
+export async function deleteBackups(workspaceId:string):Promise<void>{const db=await openDb();const tx=db.transaction(BACKUPS,'readwrite');const store=tx.objectStore(BACKUPS);const all=await request(store.getAll()) as WorkspaceBackup[];for(const item of all)if(item.workspaceId===workspaceId)store.delete(item.id);await transactionDone(tx);db.close();}
+async function pruneBackups(workspaceId:string){const backups=await listBackups(workspaceId);if(backups.length<=MAX_BACKUPS)return;const db=await openDb();const tx=db.transaction(BACKUPS,'readwrite');for(const item of backups.slice(MAX_BACKUPS))tx.objectStore(BACKUPS).delete(item.id);await transactionDone(tx);db.close();}
+
+export function downloadWorkspaceSnapshot(snapshot:WorkspaceSnapshot){const url=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`${safeSegment(snapshot.name)}.nila.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+export async function parseWorkspaceFile(file:File):Promise<WorkspaceSnapshot>{const parsed=JSON.parse(await file.text()) as Partial<WorkspaceSnapshot>;if(!parsed.id||!parsed.name||!Array.isArray(parsed.pages)||!Array.isArray(parsed.assets)||!Array.isArray(parsed.fonts)||!parsed.seo)throw new Error('Invalid Nila workspace file.');return {...parsed,savedAt:new Date().toISOString()} as WorkspaceSnapshot;}
