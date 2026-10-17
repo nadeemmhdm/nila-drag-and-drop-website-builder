@@ -86,6 +86,8 @@ export interface NilaRobotsSettings {
 
 export interface NilaSiteSeo {
   siteName: string;
+  browserTitle: string;
+  faviconAssetId?: string;
   baseUrl: string;
   language: string;
   defaultDescription: string;
@@ -98,6 +100,7 @@ export interface NilaSiteSeo {
   topics: string[];
   robots: NilaRobotsSettings;
   security: NilaSecurityTxtSettings;
+  copyrightText: string;
 }
 
 export interface NilaProject {
