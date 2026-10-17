@@ -26,6 +26,25 @@ const ITEM_LAYOUT_KEYS = new Set([
   'zIndex',
 ]);
 
+const CHILD_LAYOUT_KEYS = new Set([
+  'display',
+  'flexDirection',
+  'justifyContent',
+  'alignItems',
+  'alignContent',
+  'flexWrap',
+  'gridTemplateColumns',
+  'gridTemplateRows',
+  'gridAutoColumns',
+  'gridAutoRows',
+  'gridAutoFlow',
+  'justifyItems',
+  'placeItems',
+  'gap',
+  'rowGap',
+  'columnGap',
+]);
+
 export function horizontalPlacementStyles(placement: HorizontalPlacement): NodeStyle {
   if (placement === 'center') return { marginLeft: 'auto', marginRight: 'auto' };
   if (placement === 'right') return { marginLeft: 'auto', marginRight: '0' };
@@ -39,12 +58,14 @@ export function gridCellStyles(column: number, row: number): NodeStyle {
   return { gridColumnStart: String(safeColumn), gridRowStart: String(safeRow) };
 }
 
-export function splitCanvasStyles(styles: NodeStyle): { item: NodeStyle; surface: NodeStyle } {
+export function splitCanvasStyles(styles: NodeStyle, container = false): { item: NodeStyle; surface: NodeStyle; children: NodeStyle } {
   const item: NodeStyle = {};
   const surface: NodeStyle = {};
+  const children: NodeStyle = {};
   for (const [key, value] of Object.entries(styles)) {
     if (ITEM_LAYOUT_KEYS.has(key)) item[key] = value;
+    else if (container && CHILD_LAYOUT_KEYS.has(key)) children[key] = value;
     else surface[key] = value;
   }
-  return { item, surface };
+  return { item, surface, children };
 }
