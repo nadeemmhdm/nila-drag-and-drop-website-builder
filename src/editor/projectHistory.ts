@@ -1,5 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { NilaPage } from '../core/project';
+import { applyNativeVendorTheme } from '../library/nativeAdapter';
+import { PROJECT_UI_RUNTIME_EVENT, type ProjectUiRuntimeDetail } from '../library/projectUiRuntime';
 import type { EditorNode } from './types';
 
 interface HistoryState {
@@ -31,6 +33,25 @@ export function useProjectHistory(initialPages: NilaPage[]) {
       });
       return changed ? result : pages;
     });
+  }, [commitPages]);
+
+  useEffect(() => {
+    const onProjectUiRuntime = (event: Event) => {
+      const detail = (event as CustomEvent<ProjectUiRuntimeDetail>).detail;
+      if (!detail) return;
+      if (detail.action === 'theme') {
+        commitPages((pages) => applyNativeVendorTheme(pages, detail.theme));
+        return;
+      }
+      commitPages((pages) => {
+        const requested = detail.pageId ? pages.find((page) => page.id === detail.pageId) : undefined;
+        const target = requested ?? pages.find((page) => page.isHome) ?? pages[0];
+        if (!target || !detail.nodes.length) return pages;
+        return pages.map((page) => page.id === target.id ? { ...page, nodes: [...page.nodes, ...detail.nodes] } : page);
+      });
+    };
+    window.addEventListener(PROJECT_UI_RUNTIME_EVENT, onProjectUiRuntime);
+    return () => window.removeEventListener(PROJECT_UI_RUNTIME_EVENT, onProjectUiRuntime);
   }, [commitPages]);
 
   const undo = useCallback(() => {
