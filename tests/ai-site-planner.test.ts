@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { materializeAiSitePlan } from '../src/ai/sitePlanner';
+import { pageHasNavbar } from '../src/editor/navigation';
 import type { EditorNode } from '../src/editor/types';
 
 function flatten(nodes:EditorNode[]):EditorNode[]{return nodes.flatMap((node)=>[node,...flatten(node.children)]);}
@@ -24,5 +25,19 @@ describe('AI site planner',()=>{
     expect(media?.props.assetId).toBeUndefined();
     const button=nodes.find((node)=>node.type==='button');
     expect(button?.styles.desktop.background).toBe('#2563eb');
+  });
+
+  it('adds one semantic navbar to every page in a multi-page AI site',()=>{
+    const result=materializeAiSitePlan({
+      siteName:'Multi Page Co',
+      pages:[
+        {name:'Home',slug:'/',sections:[{presetId:'hero-split'}]},
+        {name:'About',slug:'about',sections:[{presetId:'team'}]},
+        {name:'Contact',slug:'contact',sections:[{presetId:'contact'}]},
+      ],
+    },'Multi Page Co');
+    expect(result.pages).toHaveLength(3);
+    expect(result.pages.every((page)=>pageHasNavbar(page.nodes))).toBe(true);
+    expect(result.pages.every((page)=>page.nodes.filter((node)=>node.name==='Navbar').length===1)).toBe(true);
   });
 });
