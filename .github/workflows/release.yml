@@ -34,13 +34,22 @@ jobs:
           cd dist
           zip -qr ../nila-editor-dist.zip .
 
-      - name: Publish GitHub release
+      - name: Publish or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          args=(--verify-tag --generate-notes --title "Nila ${GITHUB_REF_NAME}")
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
-            args+=(--prerelease)
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists; updating build asset."
+            gh release upload "${GITHUB_REF_NAME}" \
+              nila-editor-dist.zip#Nila-editor-production-build.zip \
+              --clobber
+          else
+            args=(--verify-tag --generate-notes --title "Nila ${GITHUB_REF_NAME}")
+            if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+              args+=(--prerelease)
+            fi
+            gh release create "${GITHUB_REF_NAME}" \
+              nila-editor-dist.zip#Nila-editor-production-build.zip \
+              "${args[@]}"
           fi
-          gh release create "${GITHUB_REF_NAME}" nila-editor-dist.zip#Nila-editor-production-build.zip "${args[@]}"
