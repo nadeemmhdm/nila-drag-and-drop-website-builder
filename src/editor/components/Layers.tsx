@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Eye, EyeOff, IndentDecrease, IndentIncrease, Lock, Unlock } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import type { EditorNode } from '../types';
 
 interface LayersProps {
@@ -15,6 +15,8 @@ interface LayersProps {
 }
 
 interface FlatMeta { parentId: string | null; index: number; siblingCount: number; previousSibling?: EditorNode; }
+
+type LayerDepthStyle = CSSProperties & { '--layer-depth': number };
 
 export function Layers(props: LayersProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -37,7 +39,7 @@ function LayerRow({ node, depth, collapsed, meta, toggleCollapsed, selectedId, o
   const canMoveIn = Boolean(info?.previousSibling && ['section','container','row','columns','grid','card'].includes(info.previousSibling.type));
   const canMoveOut = Boolean(info?.parentId);
   return <div className={`layer-tree-item depth-${Math.min(depth, 6)}`}>
-    <div className={`layer-row-v2${selectedId === node.id ? ' selected' : ''}`} style={{ '--layer-depth': depth } as React.CSSProperties}>
+    <div className={`layer-row-v2${selectedId === node.id ? ' selected' : ''}`} style={{ '--layer-depth': depth } as LayerDepthStyle}>
       <button type="button" className="layer-collapse" disabled={!hasChildren} onClick={() => hasChildren && toggleCollapsed(node.id)} aria-label={isCollapsed ? 'Expand layer' : 'Collapse layer'}>{hasChildren ? isCollapsed ? <ChevronRight size={13}/> : <ChevronDown size={13}/> : <span/>}</button>
       <button type="button" className="layer-main" onClick={() => onSelect(node.id)} title={node.name}>
         <span className={`layer-type-dot type-${node.type}`}/><span className="layer-copy"><strong>{node.name}</strong><small>{node.type}{depth === 0 ? ' · root' : ` · level ${depth + 1}`}</small></span>
