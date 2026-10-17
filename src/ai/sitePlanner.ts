@@ -1,5 +1,6 @@
 import type { NilaPage, NilaPageSeo, NilaSiteSeo } from '../core/project';
 import { SECTION_PRESETS } from '../editor/catalog';
+import { pageHasNavbar } from '../editor/navigation';
 import type { EditorNode, NodeStyle } from '../editor/types';
 import { createDefaultPageSeo, createDefaultSiteSeo } from '../seo/defaults';
 import type { AiConnection } from './client';
@@ -115,10 +116,20 @@ function normalizedTheme(theme?: AiThemePlan): Required<AiThemePlan> {
   };
 }
 
+function ensureSiteNavigation(nodes: EditorNode[], theme: Required<AiThemePlan>, enabled: boolean) {
+  if (!enabled || pageHasNavbar(nodes)) return nodes;
+  const preset = allowedPresets.get('navbar-clean');
+  if (!preset) return nodes;
+  const built = preset.build();
+  applySectionPlan(built, { presetId: 'navbar-clean' }, theme);
+  return [...built, ...nodes];
+}
+
 export function materializeAiSitePlan(plan: AiSitePlan, projectName: string): { pages: NilaPage[]; seo: NilaSiteSeo } {
   const siteName = String(plan.siteName || projectName || 'Website').trim().slice(0, 120) || 'Website';
   const theme = normalizedTheme(plan.theme);
   const sourcePages = Array.isArray(plan.pages) && plan.pages.length ? plan.pages.slice(0, 8) : [{ name: 'Home', slug: '/', sections: [{ presetId: 'hero-split' }, { presetId: 'features-grid' }, { presetId: 'footer' }] }];
+  const multiPage = sourcePages.length > 1;
   const seenSlugs = new Set<string>();
   const pages: NilaPage[] = sourcePages.map((page, pageIndex) => {
     let slug = pageIndex === 0 ? '/' : safeSlug(String(page.slug || page.name), pageIndex);
@@ -128,7 +139,7 @@ export function materializeAiSitePlan(plan: AiSitePlan, projectName: string): { 
       seenSlugs.add(slug);
     }
     const sections = (Array.isArray(page.sections) ? page.sections : []).slice(0, 14);
-    const nodes: EditorNode[] = [];
+    let nodes: EditorNode[] = [];
     for (const sectionPlan of sections) {
       const preset = allowedPresets.get(String(sectionPlan.presetId));
       if (!preset) continue;
@@ -140,6 +151,7 @@ export function materializeAiSitePlan(plan: AiSitePlan, projectName: string): { 
       const fallback = allowedPresets.get(pageIndex === 0 ? 'hero-split' : 'features-grid');
       if (fallback) nodes.push(...fallback.build());
     }
+    nodes = ensureSiteNavigation(nodes, theme, multiPage);
     const name = String(page.name || (pageIndex === 0 ? 'Home' : `Page ${pageIndex + 1}`)).trim().slice(0, 80);
     return { id: crypto.randomUUID(), name, slug, isHome: pageIndex === 0, nodes, seo: createDefaultPageSeo(name) };
   });
@@ -154,7 +166,7 @@ export function materializeAiSitePlan(plan: AiSitePlan, projectName: string): { 
 
 function siteSystemPrompt() {
   const catalog = SECTION_PRESETS.map((preset) => `${preset.id}: ${preset.name} — ${preset.description}`).join('\n');
-  return `You are the planning engine for Nila Website Builder. Build structured websites only from the allowed Nila section presets below. Never output HTML, CSS, JavaScript, remote scripts, image URLs or video URLs. Images and videos must remain placeholders; supply only useful alt-text descriptions. Keep pages practical and responsive. Use concise professional copy.\n\nAllowed section presets:\n${catalog}\n\nJSON schema:\n{"siteName":"string","browserTitle":"string","description":"string","language":"en","theme":{"primary":"#RRGGBB","background":"#RRGGBB","surface":"#RRGGBB","text":"#RRGGBB","muted":"#RRGGBB"},"topics":["string"],"llmsSummary":"string","pages":[{"name":"Home","slug":"/","sections":[{"presetId":"one allowed id","texts":["replacement strings in visual order"],"mediaAlt":["media descriptions in visual order"]}]}]}\nThe first page is Home. Use no more than 8 pages and 14 sections per page.`;
+  return `You are the planning engine for Nila Website Builder. Build structured websites only from the allowed Nila section presets below. Never output HTML, CSS, JavaScript, remote scripts, image URLs or video URLs. Images and videos must remain placeholders; supply only useful alt-text descriptions. Keep pages practical and responsive. Use concise professional copy. For multi-page sites, Nila automatically adds a responsive site navigation bar to every page, so do not duplicate it unless the user explicitly requests a special header.\n\nAllowed section presets:\n${catalog}\n\nJSON schema:\n{"siteName":"string","browserTitle":"string","description":"string","language":"en","theme":{"primary":"#RRGGBB","background":"#RRGGBB","surface":"#RRGGBB","text":"#RRGGBB","muted":"#RRGGBB"},"topics":["string"],"llmsSummary":"string","pages":[{"name":"Home","slug":"/","sections":[{"presetId":"one allowed id","texts":["replacement strings in visual order"],"mediaAlt":["media descriptions in visual order"]}]}]}\nThe first page is Home. Use no more than 8 pages and 14 sections per page.`;
 }
 
 export async function generateWebsitePlan(connection: AiConnection, request: string, projectName: string) {
