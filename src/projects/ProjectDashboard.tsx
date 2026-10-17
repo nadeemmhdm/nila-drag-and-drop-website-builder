@@ -1,5 +1,5 @@
 import { Clock3, FilePlus2, FolderOpen, LayoutTemplate, Plus, Search, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PROJECT_SCHEMA_VERSION } from '../core/constants';
 import { TEMPLATE_PRESETS, type CatalogPreset } from '../editor/catalog';
 import { EXTRA_TEMPLATE_PRESETS } from '../editor/catalogExtras';
@@ -26,13 +26,33 @@ export function ProjectDashboard({ onOpen }: Props) {
   const [templateId, setTemplateId] = useState('blank');
   const [templateQuery, setTemplateQuery] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const refresh = () => void listWorkspaces().then(setProjects);
-  useEffect(refresh, []);
+  const refresh = useCallback(async () => {
+    try {
+      const next = await listWorkspaces();
+      setProjects(next);
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load local projects.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const onFocus = () => void refresh();
+    const onVisibility = () => { if (document.visibilityState === 'visible') void refresh(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisibility); };
+  }, [refresh]);
 
   const visibleProjects = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = projects.filter((project) => !q || `${project.name} ${getProjectMeta(project.id).description}`.toLowerCase().includes(q));
+    const filtered = projects.filter((project) => !q || `${project.name} ${getProjectMeta(project.id).description} ${project.pages.map((page) => page.name).join(' ')}`.toLowerCase().includes(q));
     return showAll ? filtered : filtered.slice(0, 6);
   }, [projects, query, showAll]);
   const visibleTemplates = useMemo(() => {
@@ -44,6 +64,7 @@ export function ProjectDashboard({ onOpen }: Props) {
     const cleanName = name.trim();
     if (!cleanName || busy) return;
     setBusy(true);
+    setError('');
     try {
       const now = new Date().toISOString();
       const id = crypto.randomUUID();
@@ -65,8 +86,11 @@ export function ProjectDashboard({ onOpen }: Props) {
       };
       saveProjectMeta(id, { description: description.trim(), templateId: choice.id, installedLibraryIds: [] });
       await saveWorkspace(snapshot, true);
-      await onOpen(snapshot);
+      setProjects((current) => [snapshot, ...current.filter((item) => item.id !== snapshot.id)]);
       setName(''); setDescription(''); setTemplateId('blank'); setTemplateQuery(''); setCreating(false);
+      await onOpen(snapshot);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to create the project.');
     } finally {
       setBusy(false);
     }
@@ -77,7 +101,7 @@ export function ProjectDashboard({ onOpen }: Props) {
     await deleteWorkspace(project.id);
     await deleteBackups(project.id);
     deleteProjectMeta(project.id);
-    refresh();
+    setProjects((current) => current.filter((item) => item.id !== project.id));
   };
 
   return (
@@ -87,7 +111,8 @@ export function ProjectDashboard({ onOpen }: Props) {
       <section className="projects-section">
         <div className="projects-section-head"><div><h2>Recent projects</h2><p>Everything is saved locally while you work.</p></div><button type="button" className="text-button" onClick={() => setShowAll((value) => !value)}>{showAll ? 'Show recent' : 'View all'}</button></div>
         <div className="projects-search"><Search size={16}/><input value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search projects" /></div>
-        {visibleProjects.length ? <div className="project-grid">{visibleProjects.map((project) => { const meta=getProjectMeta(project.id); return <article className="project-card" key={project.id}><button type="button" className="project-card-open" onClick={() => void onOpen(project)}><div className="project-thumb"><LayoutTemplate size={28}/><span>{project.pages.length} {project.pages.length===1?'page':'pages'}</span></div><div className="project-card-copy"><strong>{project.name}</strong><p>{meta.description || 'No description'}</p><small><Clock3 size={13}/> {new Date(project.savedAt).toLocaleString()}</small></div></button><button type="button" className="project-delete" onClick={()=>void removeProject(project)} aria-label={`Delete ${project.name}`}><Trash2 size={15}/></button></article>; })}</div> : <div className="projects-empty"><FolderOpen size={30}/><strong>No projects yet</strong><p>Create your first project to start building.</p><button type="button" onClick={()=>setCreating(true)}>Create project</button></div>}
+        {error ? <div className="projects-storage-error">{error}</div> : null}
+        {loading ? <div className="projects-empty"><strong>Loading projects…</strong></div> : visibleProjects.length ? <div className="project-grid">{visibleProjects.map((project) => { const meta=getProjectMeta(project.id); const template=templateChoices.find((item)=>item.id===meta.templateId); return <article className="project-card" key={project.id}><button type="button" className="project-card-open" onClick={() => void onOpen(project)}><div className="project-thumb"><LayoutTemplate size={28}/><span>{template?.name??'Project'} · {project.pages.length} {project.pages.length===1?'page':'pages'}</span></div><div className="project-card-copy"><strong>{project.name}</strong><p>{meta.description || project.pages.map((page)=>page.name).join(' · ') || 'No description'}</p><small><Clock3 size={13}/> {new Date(project.savedAt).toLocaleString()}</small></div></button><button type="button" className="project-delete" onClick={()=>void removeProject(project)} aria-label={`Delete ${project.name}`}><Trash2 size={15}/></button></article>; })}</div> : <div className="projects-empty"><FolderOpen size={30}/><strong>{query.trim() ? 'No matching projects' : 'No projects yet'}</strong><p>{query.trim() ? 'Try a different search.' : 'Create your first project to start building.'}</p>{!query.trim()?<button type="button" onClick={()=>setCreating(true)}>Create project</button>:null}</div>}
       </section>
       {creating ? <div className="project-modal-backdrop" role="presentation"><section className="project-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title"><div className="project-modal-head"><div><span>NEW PROJECT</span><h2 id="new-project-title">Create a website project</h2></div><button type="button" onClick={()=>setCreating(false)} aria-label="Close"><X size={18}/></button></div><label>Project name<input autoFocus value={name} onChange={(event)=>setName(event.target.value)} placeholder="My website" maxLength={120}/></label><label>Description <small>Optional</small><textarea value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="What are you building?" maxLength={600}/></label><div className="template-picker-head"><div><strong>Starting template</strong><span>Blank is selected by default.</span></div><div className="template-search"><Search size={14}/><input value={templateQuery} onChange={(event)=>setTemplateQuery(event.target.value)} placeholder="Search all templates"/></div></div><div className="template-choice-grid">{visibleTemplates.map((choice)=><button type="button" key={choice.id} className={templateId===choice.id?'selected':''} onClick={()=>setTemplateId(choice.id)}><div className="template-choice-preview"><LayoutTemplate size={20}/></div><strong>{choice.name}</strong><span>{choice.description}</span></button>)}</div><div className="project-modal-actions"><button type="button" className="secondary" onClick={()=>setCreating(false)}>Cancel</button><button type="button" className="primary" disabled={!name.trim()||busy} onClick={()=>void createProject()}>{busy?'Creating…':'Create project'}</button></div></section></div> : null}
     </main>
