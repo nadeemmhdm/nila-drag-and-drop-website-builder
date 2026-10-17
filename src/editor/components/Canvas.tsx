@@ -3,48 +3,31 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import type { CSSProperties, MouseEvent } from 'react';
-import type { DeviceViewport, NilaPage } from '../../core/project';
+import type { DeviceViewport, NilaAsset, NilaPage } from '../../core/project';
 import { VIEWPORTS } from '../../core/constants';
+import { NilaIcon } from '../iconRegistry';
 import { normalizeAnchor, resolveLink } from '../linking';
 import type { EditorNode, NodeStyle } from '../types';
 import { isContainerNode } from '../model';
 
-interface CanvasProps {
-  nodes: EditorNode[];
-  pages: NilaPage[];
-  activePageId: string;
-  viewport: DeviceViewport;
-  zoom: number;
-  selectedId: string | null;
-  preview: boolean;
-  onSelect: (id: string | null) => void;
-  onNavigatePage: (pageId: string) => void;
-}
+interface CanvasProps { nodes: EditorNode[]; pages: NilaPage[]; assets: NilaAsset[]; activePageId: string; viewport: DeviceViewport; zoom: number; selectedId: string | null; preview: boolean; onSelect: (id: string | null) => void; onNavigatePage: (pageId: string) => void; }
+function stylesFor(node: EditorNode, viewport: DeviceViewport): CSSProperties { const merged: NodeStyle = { ...node.styles.desktop, ...(viewport === 'tablet' || viewport === 'mobile' ? node.styles.tablet : {}), ...(viewport === 'mobile' ? node.styles.mobile : {}) }; return merged as CSSProperties; }
+function assetSource(node: EditorNode, assets: NilaAsset[]) { return (node.props.assetId ? assets.find((asset) => asset.id === node.props.assetId)?.dataUrl : undefined) ?? node.props.src ?? ''; }
 
-function stylesFor(node: EditorNode, viewport: DeviceViewport): CSSProperties {
-  const merged: NodeStyle = { ...node.styles.desktop, ...(viewport === 'tablet' || viewport === 'mobile' ? node.styles.tablet : {}), ...(viewport === 'mobile' ? node.styles.mobile : {}) };
-  return merged as CSSProperties;
-}
-
-function RenderContent({ node, pages, preview, onNavigatePage }: { node: EditorNode; pages: NilaPage[]; preview: boolean; onNavigatePage: (pageId: string) => void }) {
+function RenderContent({ node, pages, assets, preview, onNavigatePage }: { node: EditorNode; pages: NilaPage[]; assets: NilaAsset[]; preview: boolean; onNavigatePage: (pageId: string) => void }) {
   const link = resolveLink(node.props, pages);
-  const handleLink = (event: MouseEvent<HTMLAnchorElement>) => {
-    event.stopPropagation();
-    if (!preview) { event.preventDefault(); return; }
-    if (link.type === 'page' && link.pageId) { event.preventDefault(); onNavigatePage(link.pageId); return; }
-    if (link.type === 'anchor') { event.preventDefault(); const target = document.getElementById(link.href.slice(1)); target?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
-    if (link.href === '#') event.preventDefault();
-  };
-
+  const source = assetSource(node, assets);
+  const handleLink = (event: MouseEvent<HTMLAnchorElement>) => { event.stopPropagation(); if (!preview) { event.preventDefault(); return; } if (link.type === 'page' && link.pageId) { event.preventDefault(); onNavigatePage(link.pageId); return; } if (link.type === 'anchor') { event.preventDefault(); document.getElementById(link.href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; } if (link.href === '#') event.preventDefault(); };
   switch (node.type) {
     case 'heading': return <h2 className="render-heading">{node.props.text}</h2>;
     case 'paragraph': return <p className="render-paragraph">{node.props.text}</p>;
     case 'link': return <a className="render-link" href={link.href} target={link.target} rel={link.rel} onClick={handleLink}>{node.props.text}</a>;
     case 'button': return <a className="render-button" href={link.href} target={link.target} rel={link.rel} onClick={handleLink}>{node.props.text}</a>;
     case 'badge': return <span className="render-badge">{node.props.text}</span>;
-    case 'image': return node.props.src ? <img className="render-image" src={node.props.src} alt={node.props.alt ?? ''} /> : <div className="image-placeholder">Image placeholder</div>;
-    case 'avatar': return node.props.src ? <img className="render-avatar" src={node.props.src} alt={node.props.alt ?? ''} /> : <div className="avatar-placeholder">Avatar</div>;
-    case 'video': return node.props.src ? <video className="render-video" src={node.props.src} controls /> : <div className="video-placeholder">Video placeholder</div>;
+    case 'icon': return <span className="render-icon"><NilaIcon name={node.props.iconName} size="1em" /></span>;
+    case 'image': return source ? <img className="render-image" src={source} alt={node.props.alt ?? ''} /> : <div className="image-placeholder">Image placeholder</div>;
+    case 'avatar': return source ? <img className="render-avatar" src={source} alt={node.props.alt ?? ''} /> : <div className="avatar-placeholder">Avatar</div>;
+    case 'video': return source ? <video className="render-video" src={source} controls preload="metadata" /> : <div className="video-placeholder">Video placeholder</div>;
     case 'quote': return <blockquote className="render-quote">{node.props.text}</blockquote>;
     case 'list': return <ul className="render-list">{(node.props.items ?? []).map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>;
     case 'input': return <label className="render-field"><span>{node.props.label}</span><input disabled placeholder={node.props.placeholder} /></label>;
@@ -57,27 +40,6 @@ function RenderContent({ node, pages, preview, onNavigatePage }: { node: EditorN
   }
 }
 
-function ContainerChildren(props: CanvasProps & { node: EditorNode }) {
-  const { node, preview } = props;
-  const { setNodeRef, isOver } = useDroppable({ id: `container:${node.id}`, data: { type: 'container', parentId: node.id }, disabled: preview });
-  return <div ref={setNodeRef} className={`node-children${isOver && !preview ? ' over' : ''}`}><SortableContext items={node.children.map((child) => child.id)} strategy={verticalListSortingStrategy}>{node.children.map((child) => <SortableNode key={child.id} {...props} node={child} parentId={node.id} nodes={[]} />)}</SortableContext>{node.children.length === 0 && !preview ? <div className="empty-container">Drop elements here</div> : null}</div>;
-}
-
-function SortableNode(props: CanvasProps & { node: EditorNode; parentId: string | null }) {
-  const { node, parentId, viewport, selectedId, onSelect, preview, pages, onNavigatePage } = props;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id, data: { source: 'canvas', type: 'node', nodeId: node.id, parentId }, disabled: preview });
-  const select = (event: MouseEvent) => { if (preview) return; event.stopPropagation(); onSelect(node.id); };
-  if (node.hidden) return null;
-  const anchorId = normalizeAnchor(node.props.anchorId);
-  return <div ref={setNodeRef} id={anchorId || undefined} className={`canvas-node node-${node.type}${!preview && selectedId === node.id ? ' selected' : ''}${isDragging ? ' dragging' : ''}`} style={{ transform: CSS.Transform.toString(transform), transition }} onClick={select} data-node-id={node.id}>
-    {!preview && selectedId === node.id ? <div className="selection-label"><span>{node.name}</span><button type="button" className="drag-handle" aria-label={`Move ${node.name}`} {...attributes} {...listeners}><GripVertical size={13} /></button></div> : null}
-    <div style={stylesFor(node, viewport)} className="render-surface"><RenderContent node={node} pages={pages} preview={preview} onNavigatePage={onNavigatePage} />{isContainerNode(node) ? <ContainerChildren {...props} node={node} /> : null}</div>
-  </div>;
-}
-
-export function Canvas(props: CanvasProps) {
-  const { nodes, viewport, zoom, selectedId, onSelect, preview } = props;
-  const { setNodeRef, isOver } = useDroppable({ id: 'container:root', data: { type: 'container', parentId: null }, disabled: preview });
-  const width = VIEWPORTS[viewport];
-  return <div className={`canvas-stage${preview ? ' preview-mode' : ''}`} onClick={() => { if (!preview) onSelect(null); }}><div className="canvas-ruler"><span>{preview ? 'preview' : viewport}</span><span>{width}px · {zoom}%</span></div><div className="canvas-viewport-wrap" style={{ width: `min(${width}px, 100%)` }}><div className="canvas-zoom" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}><div ref={setNodeRef} className={`canvas-document${isOver && !preview ? ' over' : ''}`}><SortableContext items={nodes.map((node) => node.id)} strategy={verticalListSortingStrategy}>{nodes.map((node) => <SortableNode key={node.id} {...props} node={node} parentId={null} />)}</SortableContext>{nodes.length === 0 ? <div className="empty-canvas">{preview ? 'This page is empty.' : 'Drag an element here or insert a section/template.'}</div> : null}</div></div></div></div>;
-}
+function ContainerChildren(props: CanvasProps & { node: EditorNode }) { const { node, preview } = props; const { setNodeRef, isOver } = useDroppable({ id: `container:${node.id}`, data: { type: 'container', parentId: node.id }, disabled: preview }); return <div ref={setNodeRef} className={`node-children${isOver && !preview ? ' over' : ''}`}><SortableContext items={node.children.map((child) => child.id)} strategy={verticalListSortingStrategy}>{node.children.map((child) => <SortableNode key={child.id} {...props} node={child} parentId={node.id} nodes={[]} />)}</SortableContext>{node.children.length === 0 && !preview ? <div className="empty-container">Drop elements here</div> : null}</div>; }
+function SortableNode(props: CanvasProps & { node: EditorNode; parentId: string | null }) { const { node, parentId, viewport, selectedId, onSelect, preview, pages, assets, onNavigatePage } = props; const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id, data: { source: 'canvas', type: 'node', nodeId: node.id, parentId }, disabled: preview }); const select = (event: MouseEvent) => { if (preview) return; event.stopPropagation(); onSelect(node.id); }; if (node.hidden) return null; const anchorId = normalizeAnchor(node.props.anchorId); return <div ref={setNodeRef} id={anchorId || undefined} className={`canvas-node node-${node.type}${!preview && selectedId === node.id ? ' selected' : ''}${isDragging ? ' dragging' : ''}`} style={{ transform: CSS.Transform.toString(transform), transition }} onClick={select} data-node-id={node.id}>{!preview && selectedId === node.id ? <div className="selection-label"><span>{node.name}</span><button type="button" className="drag-handle" aria-label={`Move ${node.name}`} {...attributes} {...listeners}><GripVertical size={13} /></button></div> : null}<div style={stylesFor(node, viewport)} className="render-surface"><RenderContent node={node} pages={pages} assets={assets} preview={preview} onNavigatePage={onNavigatePage} />{isContainerNode(node) ? <ContainerChildren {...props} node={node} /> : null}</div></div>; }
+export function Canvas(props: CanvasProps) { const { nodes, viewport, zoom, selectedId, onSelect, preview } = props; const { setNodeRef, isOver } = useDroppable({ id: 'container:root', data: { type: 'container', parentId: null }, disabled: preview }); const width = VIEWPORTS[viewport]; return <div className={`canvas-stage${preview ? ' preview-mode' : ''}`} onClick={() => { if (!preview) onSelect(null); }}><div className="canvas-ruler"><span>{preview ? 'preview' : viewport}</span><span>{width}px · {zoom}%</span></div><div className="canvas-viewport-wrap" style={{ width: `min(${width}px, 100%)` }}><div className="canvas-zoom" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}><div ref={setNodeRef} className={`canvas-document${isOver && !preview ? ' over' : ''}`}><SortableContext items={nodes.map((node) => node.id)} strategy={verticalListSortingStrategy}>{nodes.map((node) => <SortableNode key={node.id} {...props} node={node} parentId={null} />)}</SortableContext>{nodes.length === 0 ? <div className="empty-canvas">{preview ? 'This page is empty.' : 'Drag an element here or insert a section/template.'}</div> : null}</div></div></div></div>; }

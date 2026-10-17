@@ -11,6 +11,7 @@ export type EditorNodeType =
   | 'link'
   | 'button'
   | 'badge'
+  | 'icon'
   | 'image'
   | 'avatar'
   | 'video'
@@ -43,6 +44,8 @@ export interface EditorNodeProps {
   anchor?: string;
   anchorId?: string;
   newTab?: boolean;
+  assetId?: string;
+  iconName?: string;
   src?: string;
   alt?: string;
   placeholder?: string;

@@ -8,14 +8,7 @@ const responsive = (
 ): ResponsiveStyles => ({ desktop, tablet, mobile });
 
 export function createNode(type: EditorNodeType): EditorNode {
-  const shared: Pick<EditorNode, 'id' | 'type' | 'children' | 'locked' | 'hidden'> = {
-    id: id(),
-    type,
-    children: [],
-    locked: false,
-    hidden: false,
-  };
-
+  const shared: Pick<EditorNode, 'id' | 'type' | 'children' | 'locked' | 'hidden'> = { id: id(), type, children: [], locked: false, hidden: false };
   switch (type) {
     case 'section': return { ...shared, name: 'Section', props: {}, styles: responsive({ padding: '72px 32px', background: '#ffffff' }, {}, { padding: '44px 20px' }) };
     case 'container': return { ...shared, name: 'Container', props: {}, styles: responsive({ width: '100%', maxWidth: '1120px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }) };
@@ -27,6 +20,7 @@ export function createNode(type: EditorNodeType): EditorNode {
     case 'link': return { ...shared, name: 'Link', props: { text: 'Learn more', href: '#' }, styles: responsive({ color: '#4f46e5', fontWeight: 650, textDecoration: 'none' }) };
     case 'button': return { ...shared, name: 'Button', props: { text: 'Get started', href: '#' }, styles: responsive({ display: 'inline-flex', width: 'fit-content', padding: '12px 18px', borderRadius: '10px', background: '#111827', color: '#ffffff', fontWeight: 700, textDecoration: 'none' }) };
     case 'badge': return { ...shared, name: 'Badge', props: { text: 'New' }, styles: responsive({ display: 'inline-flex', width: 'fit-content', padding: '5px 9px', borderRadius: '999px', background: '#eef2ff', color: '#4338ca', fontSize: '12px', fontWeight: 750 }) };
+    case 'icon': return { ...shared, name: 'Icon', props: { iconName: 'Sparkles' }, styles: responsive({ display: 'inline-flex', width: 'fit-content', fontSize: '32px', color: '#111827' }) };
     case 'image': return { ...shared, name: 'Image', props: { src: '', alt: 'Placeholder image' }, styles: responsive({ width: '100%', minHeight: '220px', borderRadius: '16px', background: '#e5e7eb', objectFit: 'cover' }) };
     case 'avatar': return { ...shared, name: 'Avatar', props: { src: '', alt: 'Avatar' }, styles: responsive({ width: '56px', height: '56px', borderRadius: '999px', objectFit: 'cover', background: '#e5e7eb' }) };
     case 'video': return { ...shared, name: 'Video', props: { src: '', alt: 'Video' }, styles: responsive({ width: '100%', minHeight: '260px', borderRadius: '16px', background: '#111827' }) };
@@ -41,79 +35,13 @@ export function createNode(type: EditorNodeType): EditorNode {
   }
 }
 
-export function cloneNode(node: EditorNode): EditorNode {
-  return { ...structuredClone(node), id: id(), name: `${node.name} copy`, children: node.children.map(cloneNode) };
-}
-
-export function findNode(nodes: EditorNode[], nodeId: string): NodeLocation | null {
-  for (let index = 0; index < nodes.length; index += 1) {
-    const node = nodes[index];
-    if (node.id === nodeId) return { node, parentId: null, index };
-    const nested = findNodeWithParent(node.children, nodeId, node.id);
-    if (nested) return nested;
-  }
-  return null;
-}
-
-function findNodeWithParent(nodes: EditorNode[], nodeId: string, parentId: string): NodeLocation | null {
-  for (let index = 0; index < nodes.length; index += 1) {
-    const node = nodes[index];
-    if (node.id === nodeId) return { node, parentId, index };
-    const nested = findNodeWithParent(node.children, nodeId, node.id);
-    if (nested) return nested;
-  }
-  return null;
-}
-
-export function getChildren(nodes: EditorNode[], parentId: string | null): EditorNode[] {
-  if (parentId === null) return nodes;
-  return findNode(nodes, parentId)?.node.children ?? [];
-}
-
-export function replaceChildren(nodes: EditorNode[], parentId: string | null, children: EditorNode[]): EditorNode[] {
-  if (parentId === null) return children;
-  return updateNode(nodes, parentId, (node) => ({ ...node, children }));
-}
-
-export function updateNode(nodes: EditorNode[], nodeId: string, updater: (node: EditorNode) => EditorNode): EditorNode[] {
-  return nodes.map((node) => node.id === nodeId ? updater(node) : { ...node, children: updateNode(node.children, nodeId, updater) });
-}
-
-export function removeNode(nodes: EditorNode[], nodeId: string): { nodes: EditorNode[]; removed: EditorNode | null; parentId: string | null; index: number } {
-  const index = nodes.findIndex((node) => node.id === nodeId);
-  if (index >= 0) {
-    const next = [...nodes];
-    const [removed] = next.splice(index, 1);
-    return { nodes: next, removed, parentId: null, index };
-  }
-  for (const node of nodes) {
-    const nested = removeNode(node.children, nodeId);
-    if (nested.removed) {
-      return {
-        nodes: nodes.map((candidate) => candidate.id === node.id ? { ...candidate, children: nested.nodes } : candidate),
-        removed: nested.removed,
-        parentId: node.id,
-        index: nested.index,
-      };
-    }
-  }
-  return { nodes, removed: null, parentId: null, index: -1 };
-}
-
-export function insertNode(nodes: EditorNode[], parentId: string | null, index: number, node: EditorNode): EditorNode[] {
-  const children = [...getChildren(nodes, parentId)];
-  const safeIndex = Math.max(0, Math.min(index, children.length));
-  children.splice(safeIndex, 0, node);
-  return replaceChildren(nodes, parentId, children);
-}
-
-export function isContainerNode(node?: EditorNode | null): boolean {
-  return node ? ['section', 'container', 'columns', 'grid', 'card'].includes(node.type) : false;
-}
-
-export function isDescendant(nodes: EditorNode[], potentialParentId: string, childId: string): boolean {
-  const parent = findNode(nodes, potentialParentId)?.node;
-  if (!parent) return false;
-  const walk = (children: EditorNode[]): boolean => children.some((child) => child.id === childId || walk(child.children));
-  return walk(parent.children);
-}
+export function cloneNode(node: EditorNode): EditorNode { return { ...structuredClone(node), id: id(), name: `${node.name} copy`, children: node.children.map(cloneNode) }; }
+export function findNode(nodes: EditorNode[], nodeId: string): NodeLocation | null { for (let index = 0; index < nodes.length; index += 1) { const node = nodes[index]; if (node.id === nodeId) return { node, parentId: null, index }; const nested = findNodeWithParent(node.children, nodeId, node.id); if (nested) return nested; } return null; }
+function findNodeWithParent(nodes: EditorNode[], nodeId: string, parentId: string): NodeLocation | null { for (let index = 0; index < nodes.length; index += 1) { const node = nodes[index]; if (node.id === nodeId) return { node, parentId, index }; const nested = findNodeWithParent(node.children, nodeId, node.id); if (nested) return nested; } return null; }
+export function getChildren(nodes: EditorNode[], parentId: string | null): EditorNode[] { if (parentId === null) return nodes; return findNode(nodes, parentId)?.node.children ?? []; }
+export function replaceChildren(nodes: EditorNode[], parentId: string | null, children: EditorNode[]): EditorNode[] { if (parentId === null) return children; return updateNode(nodes, parentId, (node) => ({ ...node, children })); }
+export function updateNode(nodes: EditorNode[], nodeId: string, updater: (node: EditorNode) => EditorNode): EditorNode[] { return nodes.map((node) => node.id === nodeId ? updater(node) : { ...node, children: updateNode(node.children, nodeId, updater) }); }
+export function removeNode(nodes: EditorNode[], nodeId: string): { nodes: EditorNode[]; removed: EditorNode | null; parentId: string | null; index: number } { const index = nodes.findIndex((node) => node.id === nodeId); if (index >= 0) { const next = [...nodes]; const [removed] = next.splice(index, 1); return { nodes: next, removed, parentId: null, index }; } for (const node of nodes) { const nested = removeNode(node.children, nodeId); if (nested.removed) return { nodes: nodes.map((candidate) => candidate.id === node.id ? { ...candidate, children: nested.nodes } : candidate), removed: nested.removed, parentId: node.id, index: nested.index }; } return { nodes, removed: null, parentId: null, index: -1 }; }
+export function insertNode(nodes: EditorNode[], parentId: string | null, index: number, node: EditorNode): EditorNode[] { const children = [...getChildren(nodes, parentId)]; const safeIndex = Math.max(0, Math.min(index, children.length)); children.splice(safeIndex, 0, node); return replaceChildren(nodes, parentId, children); }
+export function isContainerNode(node?: EditorNode | null): boolean { return node ? ['section', 'container', 'columns', 'grid', 'card'].includes(node.type) : false; }
+export function isDescendant(nodes: EditorNode[], potentialParentId: string, childId: string): boolean { const parent = findNode(nodes, potentialParentId)?.node; if (!parent) return false; const walk = (children: EditorNode[]): boolean => children.some((child) => child.id === childId || walk(child.children)); return walk(parent.children); }
