@@ -18,10 +18,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify and unpack source
+      - name: Verify staged parts and unpack source
         shell: bash
         run: |
           set -euo pipefail
+          sha256sum .nila-bootstrap/part*
           cat .nila-bootstrap/part* | base64 -d > /tmp/nila-source.tar.xz
           echo "864cb137d49647c86a8ad7d8e124cfa654c114649aa6f7c077117045877224f6  /tmp/nila-source.tar.xz" | sha256sum -c -
           tar -xJf /tmp/nila-source.tar.xz
@@ -40,5 +41,3 @@ jobs:
           fi
           git commit -m "feat: build Nila drag-and-drop website builder"
           git push origin HEAD:main
-
-# Trigger after workflow exists on the default branch.
