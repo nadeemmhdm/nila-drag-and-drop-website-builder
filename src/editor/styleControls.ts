@@ -16,6 +16,18 @@ export interface StyleControlGroup {
   controls: StyleControl[];
 }
 
+export const SYSTEM_FONT_STACKS = [
+  '',
+  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  'Arial, Helvetica, sans-serif',
+  '"Trebuchet MS", Arial, sans-serif',
+  'Verdana, Geneva, sans-serif',
+  'Georgia, "Times New Roman", serif',
+  '"Times New Roman", Times, serif',
+  '"Courier New", Courier, monospace',
+  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+] as const;
+
 export const STYLE_GROUPS: StyleControlGroup[] = [
   {
     id: 'layout', label: 'Size', controls: [
@@ -65,7 +77,7 @@ export const STYLE_GROUPS: StyleControlGroup[] = [
   },
   {
     id: 'typography', label: 'Typography', controls: [
-      { property: 'fontFamily', label: 'Font family', placeholder: 'Inter, sans-serif' },
+      { property: 'fontFamily', label: 'Font family', type: 'select', options: [...SYSTEM_FONT_STACKS] },
       { property: 'fontSize', label: 'Text size', placeholder: '16px / 1rem' },
       { property: 'fontWeight', label: 'Weight', type: 'select', options: ['', '300', '400', '500', '600', '700', '800', '900'] },
       { property: 'lineHeight', label: 'Line height', placeholder: '1.5 / 24px' },
