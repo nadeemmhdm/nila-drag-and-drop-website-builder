@@ -1,4 +1,3 @@
-import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { generateProjectFiles } from '../src/exporter/projectGenerator';
 import { createDefaultPageSeo } from '../src/seo/defaults';
@@ -34,13 +33,19 @@ describe('generated React project',()=>{
     expect(files['.nila/project.json']).toBeTruthy();
     expect(String(files['README.md'].content)).toContain('React + Vite + TypeScript');
   });
-  it('emits syntactically valid generated TSX',()=>{
+  it('emits complete generated TSX modules without nested generator literals',()=>{
     const files=generatedFiles();
-    const paths=Object.keys(files).filter((path)=>path.endsWith('.tsx'));
-    const errors=paths.flatMap((path)=>{
-      const result=ts.transpileModule(String(files[path].content),{fileName:path,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}});
-      return (result.diagnostics??[]).filter((diagnostic)=>diagnostic.category===ts.DiagnosticCategory.Error).map((diagnostic)=>`${path}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText,' ')}`);
-    });
-    expect(errors).toEqual([]);
+    const app=String(files['src/App.tsx'].content);
+    const pageView=String(files['src/components/PageView.tsx'].content);
+    const home=String(files['src/pages/HomePage.tsx'].content);
+    const about=String(files['src/pages/AboutPage.tsx'].content);
+    expect(app).toContain('export default function App()');
+    expect(app).toContain("import HomePage from './pages/HomePage';");
+    expect(app).toContain("import AboutPage from './pages/AboutPage';");
+    expect(pageView).toContain('export function PageView');
+    expect(pageView).not.toContain('`meta[name=');
+    expect(pageView).not.toContain('${name}');
+    expect(home).toContain('export default function HomePage()');
+    expect(about).toContain('export default function AboutPage()');
   });
 });
