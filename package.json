@@ -17,7 +17,8 @@
     "doctor": "node scripts/nila.mjs doctor",
     "repair": "node scripts/nila.mjs repair",
     "update": "node scripts/nila.mjs update",
-    "setup": "node scripts/nila.mjs repair"
+    "setup": "node scripts/nila.mjs repair",
+    "vendor:sync": "node scripts/sync-shadcnspace.mjs"
   },
   "engines": { "node": ">=22.0.0" },
   "dependencies": { "@dnd-kit/core":"^6.3.1", "@dnd-kit/sortable":"^10.0.0", "@dnd-kit/utilities":"^3.2.2", "fflate":"^0.8.3", "lucide-react":"^0.468.0", "react":"^19.3.1", "react-dom":"^19.3.1" },
