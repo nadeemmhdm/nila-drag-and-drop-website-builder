@@ -2,7 +2,7 @@ import { Bot, CheckCircle2, KeyRound, Loader2, Send, Sparkles, WandSparkles } fr
 import { useMemo, useState } from 'react';
 import type { NilaPage, NilaSiteSeo } from '../../core/project';
 import type { EditorNode } from '../types';
-import { AI_DEFAULTS, loadAiSettings, loadSessionApiKey, saveAiSettings, saveSessionApiKey, testAiConnection, type AiConnection, type AiProvider } from '../../ai/client';
+import { AI_DEFAULTS, loadAiSettings, saveAiSettings, testAiConnection, type AiConnection, type AiProvider } from '../../ai/client';
 import { applyAiSeoPlan, enhanceContent, generateSeoPlan, generateWebsitePlan, materializeAiSitePlan } from '../../ai/sitePlanner';
 
 interface AiPanelProps {
@@ -24,7 +24,7 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
   const [provider, setProvider] = useState<AiProvider>(saved.provider);
   const [model, setModel] = useState(saved.model || AI_DEFAULTS[saved.provider].model);
   const [baseUrl, setBaseUrl] = useState(saved.baseUrl ?? AI_DEFAULTS[saved.provider].baseUrl ?? '');
-  const [apiKey, setApiKey] = useState(loadSessionApiKey);
+  const [apiKey, setApiKey] = useState('');
   const [request, setRequest] = useState('');
   const [enhanceInstruction, setEnhanceInstruction] = useState('Make this copy clearer, concise, professional and conversion-friendly.');
   const [busy, setBusy] = useState(false);
@@ -35,7 +35,6 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
 
   const persist = (nextProvider = provider, nextModel = model, nextBase = baseUrl) => {
     saveAiSettings({ provider: nextProvider, model: nextModel, baseUrl: nextBase || undefined });
-    saveSessionApiKey(apiKey);
   };
 
   const changeProvider = (next: AiProvider) => {
@@ -96,14 +95,14 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
 
   return <div className="ai-panel">
     <div className="ai-hero"><div className="ai-orb"><Bot size={20}/></div><div><strong>Nila AI</strong><span>Build with structured Nila components</span></div></div>
-    <div className="ai-security-note"><KeyRound size={14}/><span>API keys stay in sessionStorage only. They are never saved in project files or exported websites.</span></div>
+    <div className="ai-security-note"><KeyRound size={14}/><span>API keys are memory-only. They are never written to browser storage, project files or exported websites, and they clear on refresh.</span></div>
 
     <section className="ai-card">
       <h3>Provider</h3>
       <label>AI provider<select value={provider} onChange={(event) => changeProvider(event.target.value as AiProvider)}>{(Object.keys(providerLabels) as AiProvider[]).map((item) => <option key={item} value={item}>{providerLabels[item]}{item === 'ollama' ? ' · Recommended' : ''}</option>)}</select></label>
       <label>Model<input value={model} onChange={(event) => setModel(event.target.value)} onBlur={() => persist()} placeholder="Model name"/></label>
       {provider === 'custom' ? <label>Base URL<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} onBlur={() => persist()} placeholder="http://127.0.0.1:11434/v1"/><small>HTTPS required except localhost. Must expose an OpenAI-compatible /chat/completions endpoint.</small></label> : null}
-      <label>API key<input type="password" value={apiKey} onChange={(event) => { setApiKey(event.target.value); saveSessionApiKey(event.target.value); }} autoComplete="off" placeholder={provider === 'custom' ? 'Optional for local providers' : 'Required'}/></label>
+      <label>API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} autoComplete="off" placeholder={provider === 'custom' ? 'Optional for local providers' : 'Required'}/></label>
       <button type="button" className="ai-secondary" disabled={busy || !model.trim()} onClick={test}>{busy ? <Loader2 className="spin" size={14}/> : <CheckCircle2 size={14}/>} Test connection</button>
     </section>
 
