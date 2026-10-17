@@ -1,11 +1,13 @@
 import { Copy, Eye, EyeOff, Lock, RotateCcw, Trash2, Unlock, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { DeviceViewport } from '../../core/project';
+import type { DeviceViewport, NilaPage } from '../../core/project';
+import { inferLinkType, normalizeAnchor } from '../linking';
 import { ANIMATION_PRESETS, STYLE_GROUPS, type StyleControl } from '../styleControls';
-import type { EditorNode, NodeStyle } from '../types';
+import type { EditorNode, LinkType, NodeStyle } from '../types';
 
 interface InspectorProps {
   node: EditorNode | null;
+  pages: NilaPage[];
   viewport: DeviceViewport;
   onPatch: (patch: Partial<EditorNode>) => void;
   onPatchProps: (patch: EditorNode['props']) => void;
@@ -19,17 +21,12 @@ interface InspectorProps {
 type InspectorTab = 'content' | 'style';
 
 function mergeEffectiveStyles(node: EditorNode, viewport: DeviceViewport): NodeStyle {
-  return {
-    ...node.styles.desktop,
-    ...(viewport === 'tablet' || viewport === 'mobile' ? node.styles.tablet : {}),
-    ...(viewport === 'mobile' ? node.styles.mobile : {}),
-  };
+  return { ...node.styles.desktop, ...(viewport === 'tablet' || viewport === 'mobile' ? node.styles.tablet : {}), ...(viewport === 'mobile' ? node.styles.mobile : {}) };
 }
 
-export function Inspector({ node, viewport, onPatch, onPatchProps, onPatchStyle, onRemoveStyle, onResetViewportStyles, onDelete, onDuplicate }: InspectorProps) {
+export function Inspector({ node, pages, viewport, onPatch, onPatchProps, onPatchStyle, onRemoveStyle, onResetViewportStyles, onDelete, onDuplicate }: InspectorProps) {
   const [tab, setTab] = useState<InspectorTab>('style');
   const effective = useMemo(() => node ? mergeEffectiveStyles(node, viewport) : {}, [node, viewport]);
-
   if (!node) return <div className="inspector-empty"><strong>No element selected</strong><p>Select an element on the canvas or in Layers.</p></div>;
 
   const direct = node.styles[viewport];
@@ -38,20 +35,34 @@ export function Inspector({ node, viewport, onPatch, onPatchProps, onPatchStyle,
   const hasMedia = ['image','avatar','video'].includes(node.type);
   const hasField = ['input','textarea','select','checkbox'].includes(node.type);
   const currentAnimation = String(effective.animationName ?? 'none');
+  const linkType = inferLinkType(node.props);
 
   const applyAnimation = (id: string) => {
     const preset = ANIMATION_PRESETS.find((item) => item.id === id) ?? ANIMATION_PRESETS[0];
     onPatchStyle({ animationDuration: undefined, animationTimingFunction: undefined, animationFillMode: undefined, animationIterationCount: undefined, ...preset.styles });
   };
 
+  const changeLinkType = (nextType: LinkType) => {
+    const home = pages.find((page) => page.isHome) ?? pages[0];
+    if (nextType === 'page') onPatchProps({ linkType: nextType, pageId: node.props.pageId ?? home?.id, href: undefined, anchor: undefined });
+    else if (nextType === 'anchor') onPatchProps({ linkType: nextType, anchor: node.props.anchor ?? '', pageId: undefined, href: undefined });
+    else onPatchProps({ linkType: nextType, pageId: undefined, anchor: undefined, href: node.props.href ?? '' });
+  };
+
   return <div className="inspector-content">
     <div className="inspector-title"><div><span className="inspector-kicker">{node.type}</span><strong>{node.name}</strong></div><div className="inspector-actions"><button type="button" onClick={onDuplicate} title="Duplicate"><Copy size={15} /></button><button type="button" onClick={() => onPatch({ locked: !node.locked })} title={node.locked ? 'Unlock' : 'Lock'}>{node.locked ? <Lock size={15} /> : <Unlock size={15} />}</button><button type="button" onClick={() => onPatch({ hidden: !node.hidden })} title={node.hidden ? 'Show' : 'Hide'}>{node.hidden ? <EyeOff size={15} /> : <Eye size={15} />}</button><button type="button" onClick={onDelete} title="Delete" className="danger"><Trash2 size={15} /></button></div></div>
-
     <div className="inspector-tabs"><button type="button" className={tab === 'content' ? 'active' : ''} onClick={() => setTab('content')}>Content</button><button type="button" className={tab === 'style' ? 'active' : ''} onClick={() => setTab('style')}>Style</button></div>
 
     {tab === 'content' ? <section className="inspector-section"><h3>Content</h3><label>Name<input value={node.name} onChange={(event) => onPatch({ name: event.target.value })} /></label>
       {hasText ? <label>Text<textarea rows={4} value={node.props.text ?? ''} onChange={(event) => onPatchProps({ text: event.target.value })} /></label> : null}
-      {hasLink ? <label>Link<input value={node.props.href ?? ''} onChange={(event) => onPatchProps({ href: event.target.value })} /></label> : null}
+      <label>Anchor ID<input value={node.props.anchorId ?? ''} placeholder="section-name" onChange={(event) => onPatchProps({ anchorId: normalizeAnchor(event.target.value) })} /></label>
+      {hasLink ? <div className="link-builder"><h4>Link target</h4><label>Type<select value={linkType} onChange={(event) => changeLinkType(event.target.value as LinkType)}><option value="page">Page</option><option value="external">External URL</option><option value="anchor">Anchor</option><option value="email">Email</option><option value="phone">Phone</option></select></label>
+        {linkType === 'page' ? <label>Page<select value={node.props.pageId ?? ''} onChange={(event) => onPatchProps({ pageId: event.target.value })}>{pages.map((page) => <option key={page.id} value={page.id}>{page.name} {page.isHome ? '(Home)' : ''}</option>)}</select></label> : null}
+        {linkType === 'anchor' ? <label>Anchor<input value={node.props.anchor ?? ''} placeholder="pricing" onChange={(event) => onPatchProps({ anchor: normalizeAnchor(event.target.value) })} /></label> : null}
+        {linkType === 'external' ? <><label>URL<input value={node.props.href ?? ''} placeholder="https://example.com" onChange={(event) => onPatchProps({ href: event.target.value })} /></label><label className="inline-check"><input type="checkbox" checked={Boolean(node.props.newTab)} onChange={(event) => onPatchProps({ newTab: event.target.checked })} /> Open in new tab</label></> : null}
+        {linkType === 'email' ? <label>Email<input value={(node.props.href ?? '').replace(/^mailto:/i, '')} placeholder="hello@example.com" onChange={(event) => onPatchProps({ href: event.target.value })} /></label> : null}
+        {linkType === 'phone' ? <label>Phone<input value={(node.props.href ?? '').replace(/^tel:/i, '')} placeholder="+91..." onChange={(event) => onPatchProps({ href: event.target.value })} /></label> : null}
+      </div> : null}
       {hasMedia ? <><label>Source URL<input value={node.props.src ?? ''} onChange={(event) => onPatchProps({ src: event.target.value })} /></label><label>Alt text<input value={node.props.alt ?? ''} onChange={(event) => onPatchProps({ alt: event.target.value })} /></label></> : null}
       {hasField ? <label>Label<input value={node.props.label ?? ''} onChange={(event) => onPatchProps({ label: event.target.value })} /></label> : null}
       {['input','textarea'].includes(node.type) ? <label>Placeholder<input value={node.props.placeholder ?? ''} onChange={(event) => onPatchProps({ placeholder: event.target.value })} /></label> : null}
@@ -60,9 +71,7 @@ export function Inspector({ node, viewport, onPatch, onPatchProps, onPatchStyle,
       {node.type === 'checkbox' ? <label className="inline-check"><input type="checkbox" checked={Boolean(node.props.checked)} onChange={(event) => onPatchProps({ checked: event.target.checked })} /> Checked</label> : null}
     </section> : <>
       <div className="responsive-style-bar"><div><strong>{viewport}</strong><span>{viewport === 'desktop' ? 'Base styles' : `${viewport} overrides desktop${viewport === 'mobile' ? ' + tablet' : ''}`}</span></div>{viewport !== 'desktop' ? <button type="button" onClick={onResetViewportStyles} title="Clear all device overrides"><RotateCcw size={13} /> Reset overrides</button> : null}</div>
-
       <section className="inspector-section"><div className="section-row"><h3>Animation</h3><span>{viewport}</span></div><label>Preset<select value={animationId(currentAnimation)} onChange={(event) => applyAnimation(event.target.value)}>{ANIMATION_PRESETS.map((preset) => <option value={preset.id} key={preset.id}>{preset.label}</option>)}</select></label><div className="field-pair"><label>Duration<input value={String(effective.animationDuration ?? '')} placeholder="600ms" onChange={(event) => onPatchStyle({ animationDuration: event.target.value })} /></label><label>Delay<input value={String(effective.animationDelay ?? '')} placeholder="0ms" onChange={(event) => onPatchStyle({ animationDelay: event.target.value })} /></label></div></section>
-
       {STYLE_GROUPS.map((group) => <section className="inspector-section style-control-group" key={group.id}><div className="section-row"><h3>{group.label}</h3><span>{viewport}</span></div>{group.controls.map((control) => <StyleField key={control.property} control={control} directValue={direct[control.property]} effectiveValue={effective[control.property]} viewport={viewport} onChange={(value) => value === '' ? onRemoveStyle(control.property) : onPatchStyle({ [control.property]: value })} onClear={() => onRemoveStyle(control.property)} />)}</section>)}
     </>}
   </div>;

@@ -23,6 +23,8 @@ export type EditorNodeType =
   | 'select'
   | 'checkbox';
 
+export type LinkType = 'page' | 'external' | 'anchor' | 'email' | 'phone';
+
 export interface NodeStyle {
   [property: string]: string | number | undefined;
 }
@@ -36,6 +38,11 @@ export interface ResponsiveStyles {
 export interface EditorNodeProps {
   text?: string;
   href?: string;
+  linkType?: LinkType;
+  pageId?: string;
+  anchor?: string;
+  anchorId?: string;
+  newTab?: boolean;
   src?: string;
   alt?: string;
   placeholder?: string;
