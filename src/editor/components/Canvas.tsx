@@ -22,8 +22,8 @@ function mergedStyles(node: EditorNode, viewport: DeviceViewport): NodeStyle {
 }
 
 function canvasStyles(node: EditorNode, viewport: DeviceViewport) {
-  const { item, surface } = splitCanvasStyles(mergedStyles(node, viewport));
-  return { item: item as CSSProperties, surface: surface as CSSProperties };
+  const { item, surface, children } = splitCanvasStyles(mergedStyles(node, viewport), isContainerNode(node));
+  return { item: item as CSSProperties, surface: surface as CSSProperties, children: children as CSSProperties };
 }
 
 function assetSource(node: EditorNode, assets: NilaAsset[]) { return (node.props.assetId ? assets.find((asset) => asset.id === node.props.assetId)?.dataUrl : undefined) ?? node.props.src ?? ''; }
@@ -54,7 +54,11 @@ function RenderContent({ node, pages, assets, preview, onNavigatePage }: { node:
   }
 }
 
-function ContainerChildren(props: CanvasProps & { node: EditorNode }) { const { node, preview } = props; const { setNodeRef, isOver } = useDroppable({ id: `container:${node.id}`, data: { type: 'container', parentId: node.id }, disabled: preview }); return <div ref={setNodeRef} className={`node-children${isOver && !preview ? ' over' : ''}`}><SortableContext items={node.children.map((child) => child.id)} strategy={verticalListSortingStrategy}>{node.children.map((child) => <SortableNode key={child.id} {...props} node={child} parentId={node.id} nodes={[]} />)}</SortableContext>{node.children.length === 0 && !preview ? <div className="empty-container">Drop elements here</div> : null}</div>; }
+function ContainerChildren(props: CanvasProps & { node: EditorNode; layoutStyle: CSSProperties }) {
+  const { node, preview, layoutStyle } = props;
+  const { setNodeRef, isOver } = useDroppable({ id: `container:${node.id}`, data: { type: 'container', parentId: node.id }, disabled: preview });
+  return <div ref={setNodeRef} style={layoutStyle} className={`node-children${isOver && !preview ? ' over' : ''}`}><SortableContext items={node.children.map((child) => child.id)} strategy={verticalListSortingStrategy}>{node.children.map((child) => <SortableNode key={child.id} {...props} node={child} parentId={node.id} nodes={[]} />)}</SortableContext>{node.children.length === 0 && !preview ? <div className="empty-container">Drop elements here</div> : null}</div>;
+}
 
 function SortableNode(props: CanvasProps & { node: EditorNode; parentId: string | null }) {
   const { node, parentId, viewport, selectedId, onSelect, preview, pages, assets, onNavigatePage } = props;
@@ -64,7 +68,7 @@ function SortableNode(props: CanvasProps & { node: EditorNode; parentId: string 
   const anchorId = normalizeAnchor(node.props.anchorId);
   const styles = canvasStyles(node, viewport);
   const itemStyle: CSSProperties = { ...styles.item, transform: CSS.Transform.toString(transform), transition: transition ?? undefined };
-  return <div ref={setNodeRef} id={anchorId || undefined} className={`canvas-node node-${node.type}${!preview && selectedId === node.id ? ' selected' : ''}${isDragging ? ' dragging' : ''}`} style={itemStyle} onClick={select} data-node-id={node.id}>{!preview && selectedId === node.id ? <div className="selection-label"><span>{node.name}</span><button type="button" className="drag-handle" aria-label={`Move ${node.name}`} {...attributes} {...listeners}><GripVertical size={13} /></button></div> : null}<div style={styles.surface} className="render-surface"><RenderContent node={node} pages={pages} assets={assets} preview={preview} onNavigatePage={onNavigatePage} />{isContainerNode(node) ? <ContainerChildren {...props} node={node} /> : null}</div></div>;
+  return <div ref={setNodeRef} id={anchorId || undefined} className={`canvas-node node-${node.type}${!preview && selectedId === node.id ? ' selected' : ''}${isDragging ? ' dragging' : ''}`} style={itemStyle} onClick={select} data-node-id={node.id}>{!preview && selectedId === node.id ? <div className="selection-label"><span>{node.name}</span><button type="button" className="drag-handle" aria-label={`Move ${node.name}`} {...attributes} {...listeners}><GripVertical size={13} /></button></div> : null}<div style={styles.surface} className="render-surface"><RenderContent node={node} pages={pages} assets={assets} preview={preview} onNavigatePage={onNavigatePage} />{isContainerNode(node) ? <ContainerChildren {...props} node={node} layoutStyle={styles.children} /> : null}</div></div>;
 }
 
 export function Canvas(props: CanvasProps) { const { nodes, viewport, zoom, selectedId, onSelect, preview } = props; const { setNodeRef, isOver } = useDroppable({ id: 'container:root', data: { type: 'container', parentId: null }, disabled: preview }); const width = VIEWPORTS[viewport]; return <div className={`canvas-stage${preview ? ' preview-mode' : ''}`} onClick={() => { if (!preview) onSelect(null); }}><div className="canvas-ruler"><span>{preview ? 'preview' : viewport}</span><span>{width}px · {zoom}%</span></div><div className="canvas-viewport-wrap" style={{ width: `min(${width}px, 100%)` }}><div className="canvas-zoom" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}><div ref={setNodeRef} className={`canvas-document${isOver && !preview ? ' over' : ''}`}><SortableContext items={nodes.map((node) => node.id)} strategy={verticalListSortingStrategy}>{nodes.map((node) => <SortableNode key={node.id} {...props} node={node} parentId={null} />)}</SortableContext>{nodes.length === 0 ? <div className="empty-canvas">{preview ? 'This page is empty.' : 'Drag an element here or insert a section/template.'}</div> : null}</div></div></div></div>; }
