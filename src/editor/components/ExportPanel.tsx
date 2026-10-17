@@ -6,12 +6,13 @@ import { generatePreviewDocument } from '../../exporter/preview';
 import { downloadZip } from '../../exporter/zipExport';
 import type { ExportFile, ExportProjectInput } from '../../exporter/types';
 import { loadInstalledVendorFiles } from '../../library/vendorExport';
+import { loadLastWorkspace } from '../../workspace/storage';
 import './ExportPanel.css';
 
-interface Props { input: ExportProjectInput; activePageId?: string; projectId: string; }
+interface Props { input: ExportProjectInput; activePageId?: string; }
 const safeZipName=(value:string)=>value.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'nila-site';
 
-export function ExportPanel({input,activePageId,projectId}:Props){
+export function ExportPanel({input,activePageId}:Props){
   const baseFiles=useMemo(()=>generateProjectFiles(input),[input]);
   const [vendorFiles,setVendorFiles]=useState<ExportFile[]>([]);
   const [vendorLoading,setVendorLoading]=useState(true);
@@ -25,9 +26,9 @@ export function ExportPanel({input,activePageId,projectId}:Props){
     let active=true;
     setVendorLoading(true);
     setVendorError('');
-    void loadInstalledVendorFiles(projectId).then((next)=>{if(active)setVendorFiles(next);}).catch((error)=>{if(active){setVendorFiles([]);setVendorError(error instanceof Error?error.message:'Unable to prepare installed offline library source.');}}).finally(()=>{if(active)setVendorLoading(false);});
+    void loadLastWorkspace().then(async(workspace)=>workspace?loadInstalledVendorFiles(workspace.id):[]).then((next)=>{if(active)setVendorFiles(next);}).catch((error)=>{if(active){setVendorFiles([]);setVendorError(error instanceof Error?error.message:'Unable to prepare installed offline library source.');}}).finally(()=>{if(active)setVendorLoading(false);});
     return()=>{active=false;};
-  },[projectId]);
+  },[]);
 
   const download=()=>{if(vendorLoading||vendorError)return;downloadZip(files,`${safeZipName(input.projectName)}.zip`);};
   const push=async()=>{if(vendorLoading||vendorError)return;setBusy(true);setStatus('Pushing generated project…');setCommitUrl('');try{const result=await pushFilesToGitHub(files,{owner,repo,branch,pathPrefix,token,commitMessage:'Export website from Nila Website Builder'});setStatus(`Pushed commit ${result.sha.slice(0,7)}`);setCommitUrl(result.url);setToken('');}catch(error){setStatus(error instanceof Error?error.message:'GitHub export failed.');}finally{setBusy(false)}};
