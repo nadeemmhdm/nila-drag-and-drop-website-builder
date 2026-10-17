@@ -26,6 +26,8 @@ export type EditorNodeType =
   | 'checkbox';
 
 export type LinkType = 'page' | 'external' | 'anchor' | 'email' | 'phone';
+export type ListStyle = 'bullet' | 'number' | 'lower-alpha' | 'upper-alpha' | 'roman' | 'mixed';
+export type IconMode = 'lucide' | 'emoji';
 
 export interface NodeStyle {
   [property: string]: string | number | undefined;
@@ -47,11 +49,20 @@ export interface EditorNodeProps {
   newTab?: boolean;
   assetId?: string;
   iconName?: string;
+  iconMode?: IconMode;
+  emoji?: string;
   src?: string;
   alt?: string;
+  caption?: string;
+  loading?: 'lazy' | 'eager';
   placeholder?: string;
   label?: string;
+  fieldName?: string;
+  inputType?: 'text' | 'email' | 'tel' | 'url' | 'number' | 'password' | 'search' | 'date' | 'time';
+  required?: boolean;
+  rows?: number;
   items?: string[];
+  listStyle?: ListStyle;
   options?: string[];
   checked?: boolean;
 }
