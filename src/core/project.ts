@@ -1,3 +1,5 @@
+import type { EditorNode } from '../editor/types';
+
 export type DeviceViewport = 'mobile' | 'tablet' | 'desktop';
 
 export interface NilaProjectMeta {
@@ -16,7 +18,11 @@ export interface NilaPageMeta {
   isHome: boolean;
 }
 
+export interface NilaPage extends NilaPageMeta {
+  nodes: EditorNode[];
+}
+
 export interface NilaProject {
   meta: NilaProjectMeta;
-  pages: NilaPageMeta[];
+  pages: NilaPage[];
 }
