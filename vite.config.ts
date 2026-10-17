@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-// @ts-expect-error Runtime-only Vite plugin implemented as ESM JavaScript.
+// @ts-ignore Runtime-only Vite plugin implemented as ESM JavaScript.
 import { shadcnSpaceBridge } from './scripts/shadcnspace-bridge.mjs';
 
 export default defineConfig({
