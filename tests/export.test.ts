@@ -62,4 +62,15 @@ describe('generated React project',()=>{
     expect(String(files['index.html'].content)).toContain('rel="icon"');
     expect(String(files['index.html'].content)).toContain('/assets/media/logo.png');
   });
+  it('preserves advanced list, emoji, media and form controls in generated renderer',()=>{
+    const pageView=String(generatedFiles()['src/components/PageView.tsx'].content);
+    expect(pageView).toContain("p.iconMode==='emoji'");
+    expect(pageView).toContain("p.listStyle==='mixed'");
+    expect(pageView).toContain('p.caption');
+    expect(pageView).toContain("p.loading==='eager'");
+    expect(pageView).toContain('p.inputType');
+    expect(pageView).toContain('p.fieldName');
+    expect(pageView).toContain('p.required');
+    expect(pageView).toContain('p.rows');
+  });
 });
