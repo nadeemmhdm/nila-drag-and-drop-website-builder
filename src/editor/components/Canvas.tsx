@@ -9,11 +9,11 @@ import { NilaIcon } from '../iconRegistry';
 import { normalizeAnchor, resolveLink } from '../linking';
 import { isContainerNode } from '../model';
 import { splitCanvasStyles } from '../placement';
-import type { EditorNode, ListStyle, NodeStyle } from '../types';
+import { mergedResponsiveStyle } from '../responsive';
+import type { EditorNode, ListStyle } from '../types';
 
 interface CanvasProps { nodes: EditorNode[]; pages: NilaPage[]; assets: NilaAsset[]; activePageId: string; viewport: DeviceViewport; zoom: number; selectedId: string | null; preview: boolean; onSelect: (id: string | null) => void; onNavigatePage: (pageId: string) => void; }
-function mergedStyles(node:EditorNode,viewport:DeviceViewport):NodeStyle{return{...node.styles.desktop,...(viewport==='tablet'||viewport==='mobile'?node.styles.tablet:{}),...(viewport==='mobile'?node.styles.mobile:{})}}
-function canvasStyles(node:EditorNode,viewport:DeviceViewport){const{item,surface,children}=splitCanvasStyles(mergedStyles(node,viewport),isContainerNode(node));return{item:item as CSSProperties,surface:surface as CSSProperties,children:children as CSSProperties}}
+function canvasStyles(node:EditorNode,viewport:DeviceViewport){const{item,surface,children}=splitCanvasStyles(mergedResponsiveStyle(node,viewport),isContainerNode(node));return{item:item as CSSProperties,surface:surface as CSSProperties,children:children as CSSProperties}}
 function assetSource(node:EditorNode,assets:NilaAsset[]){return(node.props.assetId?assets.find((asset)=>asset.id===node.props.assetId)?.dataUrl:undefined)??node.props.src??''}
 function listCssType(style:ListStyle|undefined){if(style==='number')return'decimal';if(style==='lower-alpha')return'lower-alpha';if(style==='upper-alpha')return'upper-alpha';if(style==='roman')return'upper-roman';return'disc'}
 function MixedList({items}:{items:string[]}){return <ul className="render-list render-list-mixed">{items.map((item,index)=><li key={`${item}-${index}`}><span className="mixed-marker">{index%2===0?`${Math.floor(index/2)+1}.`:`${String.fromCharCode(97+Math.floor(index/2)%26)}.`}</span><span>{item}</span></li>)}</ul>}
