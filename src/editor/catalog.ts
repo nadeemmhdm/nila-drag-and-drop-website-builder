@@ -1,0 +1,132 @@
+import { createNode } from './model';
+import type { EditorNode, EditorNodeProps, EditorNodeType, NodeStyle } from './types';
+
+export type CatalogKind = 'section' | 'template';
+export interface CatalogPreset {
+  id: string;
+  kind: CatalogKind;
+  name: string;
+  category: string;
+  description: string;
+  tags: string[];
+  build: () => EditorNode[];
+}
+
+const patch = (type: EditorNodeType, config: { name?: string; props?: EditorNodeProps; style?: NodeStyle; tablet?: NodeStyle; mobile?: NodeStyle; children?: EditorNode[] } = {}) => {
+  const base = createNode(type);
+  return {
+    ...base,
+    name: config.name ?? base.name,
+    props: { ...base.props, ...config.props },
+    styles: {
+      desktop: { ...base.styles.desktop, ...config.style },
+      tablet: { ...base.styles.tablet, ...config.tablet },
+      mobile: { ...base.styles.mobile, ...config.mobile },
+    },
+    children: config.children ?? base.children,
+  };
+};
+
+const text = (value: string, style: NodeStyle = {}) => patch('paragraph', { props: { text: value }, style });
+const heading = (value: string, style: NodeStyle = {}) => patch('heading', { props: { text: value }, style });
+const button = (value: string, style: NodeStyle = {}) => patch('button', { props: { text: value }, style });
+const badge = (value: string) => patch('badge', { props: { text: value } });
+const card = (children: EditorNode[], style: NodeStyle = {}) => patch('card', { children, style });
+const container = (children: EditorNode[], style: NodeStyle = {}) => patch('container', { children, style });
+const section = (name: string, children: EditorNode[], style: NodeStyle = {}) => patch('section', { name, children: [container(children)], style });
+const grid = (children: EditorNode[], columns = 3) => patch('grid', { children, style: { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }, tablet: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }, mobile: { gridTemplateColumns: '1fr' } });
+const columns = (children: EditorNode[]) => patch('columns', { children });
+
+const nav = () => section('Navbar', [
+  patch('container', { name: 'Nav row', style: { maxWidth: '1120px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }, mobile: { flexWrap: 'wrap' }, children: [
+    heading('Nila', { fontSize: '22px' }),
+    patch('container', { name: 'Nav links', style: { display: 'flex', flexDirection: 'row', gap: '18px', width: 'auto', margin: 0 }, children: [patch('link', { props: { text: 'Features' } }), patch('link', { props: { text: 'Pricing' } }), patch('link', { props: { text: 'Contact' } })] }),
+    button('Get started'),
+  ] }),
+], { padding: '18px 28px', borderBottom: '1px solid #e5e7eb' });
+
+const hero = () => section('Hero', [
+  columns([
+    patch('container', { name: 'Hero copy', style: { justifyContent: 'center', gap: '18px' }, children: [badge('Local-first'), heading('Build responsive websites visually, own the source.', { fontSize: '58px' }), text('Design with reusable elements and sections, then keep a clean typed project model ready for export.'), patch('container', { name: 'Hero actions', style: { display: 'flex', flexDirection: 'row', gap: '10px', width: 'auto', margin: 0 }, children: [button('Start building'), patch('button', { props: { text: 'Explore features' }, style: { background: '#ffffff', color: '#111827', border: '1px solid #d1d5db' } })] })] }),
+    patch('image', { name: 'Hero visual', style: { minHeight: '380px', background: 'linear-gradient(135deg,#eef2ff,#dbeafe)' } }),
+  ]),
+], { padding: '90px 32px' });
+
+const features = () => section('Features', [heading('Everything needed for a strong starting point.', { fontSize: '38px', textAlign: 'center' }), text('Composable building blocks keep the editor flexible.', { textAlign: 'center' }), grid([
+  card([badge('01'), heading('Visual editing', { fontSize: '22px' }), text('Drag, reorder, nest and edit elements directly in the canvas.')]),
+  card([badge('02'), heading('Responsive by default', { fontSize: '22px' }), text('Desktop, tablet and mobile styles share a predictable inheritance model.')]),
+  card([badge('03'), heading('Source ownership', { fontSize: '22px' }), text('Generated websites are designed to run independently from the editor.')]),
+])]);
+
+const services = () => section('Services', [badge('Services'), heading('Clear services, easy to scan.', { fontSize: '40px' }), grid([
+  card([heading('Web design', { fontSize: '21px' }), text('Modern responsive interface design with practical UX decisions.')]),
+  card([heading('Development', { fontSize: '21px' }), text('React-based implementation with maintainable project structure.')]),
+  card([heading('Optimization', { fontSize: '21px' }), text('Performance, accessibility and search-readiness from the start.')]),
+])]);
+
+const stats = () => section('Stats', [grid([
+  card([heading('120+', { fontSize: '36px' }), text('Projects launched')]), card([heading('98%', { fontSize: '36px' }), text('Client satisfaction')]), card([heading('24/7', { fontSize: '36px' }), text('Global availability')]),
+])], { background: '#111827' });
+
+const testimonials = () => section('Testimonials', [badge('Testimonials'), heading('Trusted by teams that value clarity.', { fontSize: '38px' }), grid([
+  card([patch('quote', { props: { text: 'The workflow stayed fast without sacrificing control over the final code.' } }), text('— Product designer')]),
+  card([patch('quote', { props: { text: 'Reusable sections made it easy to keep pages visually consistent.' } }), text('— Front-end developer')]),
+  card([patch('quote', { props: { text: 'Responsive editing felt natural instead of being an afterthought.' } }), text('— Agency owner')]),
+])]);
+
+const pricing = () => section('Pricing', [badge('Pricing'), heading('Simple plans that scale with you.', { fontSize: '38px' }), grid([
+  card([heading('Starter', { fontSize: '24px' }), heading('$0', { fontSize: '38px' }), patch('list', { props: { items: ['Core editor', 'Responsive canvas', 'Local projects'] } }), button('Start free')]),
+  card([badge('Popular'), heading('Pro', { fontSize: '24px' }), heading('$19', { fontSize: '38px' }), patch('list', { props: { items: ['Everything in Starter', 'Premium workflows', 'Priority features'] } }), button('Choose Pro')], { border: '2px solid #6366f1' }),
+  card([heading('Team', { fontSize: '24px' }), heading('$49', { fontSize: '38px' }), patch('list', { props: { items: ['Shared workflows', 'Team governance', 'Advanced support'] } }), button('Contact sales')]),
+])]);
+
+const faq = () => section('FAQ', [badge('FAQ'), heading('Questions, answered.', { fontSize: '38px' }), patch('container', { name: 'FAQ list', children: [
+  card([heading('Can I keep my source code?', { fontSize: '19px' }), text('Yes. Nila is built around source ownership and portable generated projects.')]),
+  card([heading('Does the editor require a cloud account?', { fontSize: '19px' }), text('Core editing is designed around a local-first architecture.')]),
+  card([heading('Can I customize responsive styles?', { fontSize: '19px' }), text('Yes. Device-specific style overrides build on shared desktop values.')]),
+] })]);
+
+const contact = () => section('Contact', [columns([
+  patch('container', { children: [badge('Contact'), heading('Tell us what you want to build.', { fontSize: '40px' }), text('Use the form layout as a visual starting point. Backend submission can be connected later.')]}),
+  card([patch('input'), patch('input', { props: { label: 'Email', placeholder: 'you@example.com' } }), patch('textarea'), button('Send message')]),
+])]);
+
+const team = () => section('Team', [badge('Team'), heading('People behind the work.', { fontSize: '38px' }), grid([
+  card([patch('avatar'), heading('Alex Morgan', { fontSize: '20px' }), text('Product & Design')]), card([patch('avatar'), heading('Sam Lee', { fontSize: '20px' }), text('Engineering')]), card([patch('avatar'), heading('Jordan Kim', { fontSize: '20px' }), text('Growth')]),
+])]);
+
+const gallery = () => section('Gallery', [badge('Gallery'), heading('Show the work visually.', { fontSize: '38px' }), grid([patch('image'), patch('image'), patch('image'), patch('image'), patch('image'), patch('image')])]);
+const cta = () => section('CTA', [patch('container', { style: { alignItems: 'center', textAlign: 'center', padding: '46px', borderRadius: '24px', background: '#111827' }, children: [badge('Ready?'), heading('Turn your next idea into a real website.', { color: '#ffffff', fontSize: '42px' }), text('Start from a reusable section, then make every detail yours.', { color: '#cbd5e1' }), button('Start building', { background: '#ffffff', color: '#111827' })] })]);
+const footer = () => section('Footer', [patch('container', { style: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '30px' }, mobile: { gridTemplateColumns: '1fr' }, children: [patch('container', { children: [heading('Nila', { fontSize: '24px' }), text('A local-first visual website builder.')]}), patch('container', { children: [heading('Product', { fontSize: '16px' }), patch('link', { props: { text: 'Features' } }), patch('link', { props: { text: 'Templates' } })]}), patch('container', { children: [heading('Project', { fontSize: '16px' }), patch('link', { props: { text: 'GitHub' } }), patch('link', { props: { text: 'Security' } })]})] })], { borderTop: '1px solid #e5e7eb', padding: '50px 32px' });
+
+export const SECTION_PRESETS: CatalogPreset[] = [
+  { id: 'navbar-clean', kind: 'section', name: 'Clean Navbar', category: 'Navigation', description: 'Responsive brand, links and primary action.', tags: ['nav','header'], build: () => [nav()] },
+  { id: 'hero-split', kind: 'section', name: 'Split Hero', category: 'Hero', description: 'Two-column hero with copy, actions and visual.', tags: ['hero','landing'], build: () => [hero()] },
+  { id: 'features-grid', kind: 'section', name: 'Feature Grid', category: 'Marketing', description: 'Three-card feature overview.', tags: ['features','cards'], build: () => [features()] },
+  { id: 'services-grid', kind: 'section', name: 'Services Grid', category: 'Marketing', description: 'Professional three-service layout.', tags: ['services','business'], build: () => [services()] },
+  { id: 'stats', kind: 'section', name: 'Stats Row', category: 'Proof', description: 'High-contrast metrics section.', tags: ['stats','metrics'], build: () => [stats()] },
+  { id: 'testimonials', kind: 'section', name: 'Testimonials', category: 'Proof', description: 'Three customer quote cards.', tags: ['reviews','quotes'], build: () => [testimonials()] },
+  { id: 'pricing', kind: 'section', name: 'Pricing Cards', category: 'Conversion', description: 'Three-tier pricing comparison.', tags: ['pricing','plans'], build: () => [pricing()] },
+  { id: 'faq', kind: 'section', name: 'FAQ Stack', category: 'Content', description: 'Simple question and answer cards.', tags: ['faq','content'], build: () => [faq()] },
+  { id: 'contact', kind: 'section', name: 'Contact Form', category: 'Forms', description: 'Contact copy and visual form layout.', tags: ['contact','form'], build: () => [contact()] },
+  { id: 'team', kind: 'section', name: 'Team Grid', category: 'Content', description: 'Profile cards for a three-person team.', tags: ['team','people'], build: () => [team()] },
+  { id: 'gallery', kind: 'section', name: 'Gallery Grid', category: 'Media', description: 'Responsive six-image gallery.', tags: ['gallery','media'], build: () => [gallery()] },
+  { id: 'cta', kind: 'section', name: 'Centered CTA', category: 'Conversion', description: 'Focused final call-to-action.', tags: ['cta','conversion'], build: () => [cta()] },
+  { id: 'footer', kind: 'section', name: 'Structured Footer', category: 'Navigation', description: 'Brand and grouped footer links.', tags: ['footer','links'], build: () => [footer()] },
+];
+
+const landing = () => [nav(), hero(), features(), testimonials(), pricing(), faq(), cta(), footer()];
+const agency = () => [nav(), hero(), services(), stats(), testimonials(), team(), contact(), footer()];
+const portfolio = () => [nav(), section('Portfolio intro', [badge('Portfolio'), heading('Selected work and thoughtful digital experiences.', { fontSize: '56px' }), text('A clean starter for designers, developers and creative professionals.')]), gallery(), testimonials(), contact(), footer()];
+const business = () => [nav(), hero(), services(), stats(), team(), contact(), footer()];
+const appLanding = () => [nav(), section('App hero', [columns([patch('container', { children: [badge('New app'), heading('A better way to keep work moving.', { fontSize: '56px' }), text('Present your application with clear value, proof and conversion paths.'), button('Download app')]}), patch('image', { style: { minHeight: '440px' } })])]), features(), testimonials(), cta(), footer()];
+const comingSoon = () => [section('Coming soon', [patch('container', { style: { minHeight: '620px', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }, children: [badge('Coming soon'), heading('Something useful is on the way.', { fontSize: '58px' }), text('Use this starter while you prepare the full launch.'), patch('input', { props: { label: 'Email', placeholder: 'you@example.com' }, style: { maxWidth: '420px' } }), button('Join the waitlist')] })])];
+
+export const TEMPLATE_PRESETS: CatalogPreset[] = [
+  { id: 'saas', kind: 'template', name: 'SaaS Landing', category: 'SaaS', description: 'Complete software landing page starter.', tags: ['saas','startup'], build: landing },
+  { id: 'agency', kind: 'template', name: 'Agency', category: 'Business', description: 'Services, proof, team and contact flow.', tags: ['agency','services'], build: agency },
+  { id: 'portfolio', kind: 'template', name: 'Portfolio', category: 'Personal', description: 'Work-focused creative portfolio starter.', tags: ['portfolio','creative'], build: portfolio },
+  { id: 'business', kind: 'template', name: 'Business', category: 'Business', description: 'General company website structure.', tags: ['company','business'], build: business },
+  { id: 'app', kind: 'template', name: 'App Landing', category: 'Product', description: 'Mobile or desktop app marketing starter.', tags: ['app','product'], build: appLanding },
+  { id: 'coming-soon', kind: 'template', name: 'Coming Soon', category: 'Launch', description: 'Focused pre-launch waitlist page.', tags: ['launch','waitlist'], build: comingSoon },
+];

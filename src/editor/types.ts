@@ -3,12 +3,25 @@ import type { DeviceViewport } from '../core/project';
 export type EditorNodeType =
   | 'section'
   | 'container'
+  | 'columns'
+  | 'grid'
+  | 'card'
   | 'heading'
   | 'paragraph'
+  | 'link'
   | 'button'
+  | 'badge'
   | 'image'
+  | 'avatar'
+  | 'video'
+  | 'quote'
+  | 'list'
   | 'divider'
-  | 'spacer';
+  | 'spacer'
+  | 'input'
+  | 'textarea'
+  | 'select'
+  | 'checkbox';
 
 export interface NodeStyle {
   [property: string]: string | number | undefined;
@@ -25,6 +38,11 @@ export interface EditorNodeProps {
   href?: string;
   src?: string;
   alt?: string;
+  placeholder?: string;
+  label?: string;
+  items?: string[];
+  options?: string[];
+  checked?: boolean;
 }
 
 export interface EditorNode {
