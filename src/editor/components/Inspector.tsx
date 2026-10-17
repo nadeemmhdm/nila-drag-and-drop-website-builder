@@ -1,13 +1,15 @@
-import { Copy, Eye, EyeOff, Lock, RotateCcw, Trash2, Unlock, X } from 'lucide-react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Copy, Eye, EyeOff, Lock, Move, RotateCcw, Trash2, Unlock, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { DeviceViewport, NilaAsset, NilaFont, NilaPage } from '../../core/project';
 import { ICON_ENTRIES } from '../iconRegistry';
 import { inferLinkType, normalizeAnchor } from '../linking';
+import { gridCellStyles, horizontalPlacementStyles, type HorizontalPlacement } from '../placement';
 import { ANIMATION_PRESETS, STYLE_GROUPS, type StyleControl } from '../styleControls';
 import type { EditorNode, LinkType, NodeStyle } from '../types';
 
 interface InspectorProps {
   node: EditorNode | null;
+  parentNode?: EditorNode | null;
   pages: NilaPage[];
   assets: NilaAsset[];
   fonts: NilaFont[];
@@ -15,6 +17,7 @@ interface InspectorProps {
   onPatch: (patch: Partial<EditorNode>) => void;
   onPatchProps: (patch: EditorNode['props']) => void;
   onPatchStyle: (patch: NodeStyle) => void;
+  onPatchParentStyle: (patch: NodeStyle) => void;
   onRemoveStyle: (property: string) => void;
   onResetViewportStyles: () => void;
   onDelete: () => void;
@@ -40,7 +43,7 @@ export function Inspector(props: InspectorProps) {
     return (
       <div className="inspector-empty">
         <strong>No element selected</strong>
-        <p>Select an element on the canvas or in Layers.</p>
+        <p>Select an element on the canvas or in Layers. Alignment and placement controls will appear here.</p>
       </div>
     );
   }
@@ -62,7 +65,7 @@ export function Inspector(props: InspectorProps) {
 
       <div className="inspector-tabs">
         <button type="button" className={tab === 'content' ? 'active' : ''} onClick={() => setTab('content')}>Content</button>
-        <button type="button" className={tab === 'style' ? 'active' : ''} onClick={() => setTab('style')}>Style</button>
+        <button type="button" className={tab === 'style' ? 'active' : ''} onClick={() => setTab('style')}>Style & layout</button>
       </div>
 
       {tab === 'content'
@@ -179,10 +182,14 @@ function MediaControls({ node, assets, compatibleAssets, onPatchProps }: { node:
   );
 }
 
-function StyleInspector({ node, fonts, viewport, effective, onPatchStyle, onRemoveStyle, onResetViewportStyles }: InspectorProps & { node: EditorNode; effective: NodeStyle }) {
+function StyleInspector({ node, parentNode, fonts, viewport, effective, onPatchStyle, onPatchParentStyle, onRemoveStyle, onResetViewportStyles }: InspectorProps & { node: EditorNode; effective: NodeStyle }) {
   const direct = node.styles[viewport];
+  const parentEffective = parentNode ? mergeEffectiveStyles(parentNode, viewport) : {};
   const currentAnimation = String(effective.animationName ?? 'none');
   const currentFontId = fonts.find((font) => String(effective.fontFamily ?? '').includes(font.family))?.id ?? '';
+  const currentPosition = String(effective.position ?? 'static');
+  const parentIsGrid = Boolean(parentNode && (['grid', 'columns'].includes(parentNode.type) || String(parentEffective.display).includes('grid')));
+  const textCapable = ['heading', 'paragraph', 'link', 'button', 'badge', 'quote', 'list'].includes(node.type);
 
   const applyAnimation = (id: string) => {
     const preset = ANIMATION_PRESETS.find((item) => item.id === id) ?? ANIMATION_PRESETS[0];
@@ -195,6 +202,30 @@ function StyleInspector({ node, fonts, viewport, effective, onPatchStyle, onRemo
     });
   };
 
+  const applyHorizontalPlacement = (placement: HorizontalPlacement) => {
+    const patch = horizontalPlacementStyles(placement);
+    if (placement !== 'stretch' && ['button', 'link', 'badge', 'icon', 'avatar'].includes(node.type)) patch.width = 'fit-content';
+    onPatchStyle(patch);
+  };
+
+  const makeParentGrid = () => {
+    onPatchParentStyle({
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gridTemplateRows: 'repeat(3, minmax(72px, auto))',
+      gap: '12px',
+      minHeight: String(parentEffective.minHeight ?? '280px'),
+      position: String(parentEffective.position ?? 'relative') === 'static' ? 'relative' : String(parentEffective.position ?? 'relative'),
+    });
+  };
+
+  const enableFreePosition = () => {
+    if (parentNode) onPatchParentStyle({ position: 'relative', minHeight: String(parentEffective.minHeight ?? '320px') });
+    onPatchStyle({ position: 'absolute', left: String(effective.left ?? '24px'), top: String(effective.top ?? '24px'), right: 'auto', bottom: 'auto', zIndex: String(effective.zIndex ?? '10') });
+  };
+
+  const restoreFlow = () => onPatchStyle({ position: 'static', left: 'auto', top: 'auto', right: 'auto', bottom: 'auto', zIndex: 'auto' });
+
   return (
     <>
       <div className="responsive-style-bar">
@@ -204,6 +235,55 @@ function StyleInspector({ node, fonts, viewport, effective, onPatchStyle, onRemo
         </div>
         {viewport !== 'desktop' ? <button type="button" onClick={onResetViewportStyles}><RotateCcw size={13} /> Reset overrides</button> : null}
       </div>
+
+      <section className="inspector-section placement-panel">
+        <div className="section-row"><h3>Placement</h3><span>{parentNode ? `Inside ${parentNode.name}` : 'Page root'}</span></div>
+        <p className="placement-help">Position this element visually without writing CSS. Settings apply to the current {viewport} view.</p>
+
+        <div className="placement-label">Element alignment</div>
+        <div className="placement-segment four-way">
+          <button type="button" onClick={() => applyHorizontalPlacement('left')} title="Align element left"><AlignLeft size={15} /><span>Left</span></button>
+          <button type="button" onClick={() => applyHorizontalPlacement('center')} title="Center element"><AlignCenter size={15} /><span>Center</span></button>
+          <button type="button" onClick={() => applyHorizontalPlacement('right')} title="Align element right"><AlignRight size={15} /><span>Right</span></button>
+          <button type="button" onClick={() => applyHorizontalPlacement('stretch')} title="Stretch element"><span className="stretch-glyph">↔</span><span>Full</span></button>
+        </div>
+
+        {textCapable ? <>
+          <div className="placement-label">Text alignment</div>
+          <div className="placement-segment icon-only">
+            <button type="button" className={effective.textAlign === 'left' ? 'active' : ''} onClick={() => onPatchStyle({ textAlign: 'left' })} title="Text left"><AlignLeft size={16} /></button>
+            <button type="button" className={effective.textAlign === 'center' ? 'active' : ''} onClick={() => onPatchStyle({ textAlign: 'center' })} title="Text center"><AlignCenter size={16} /></button>
+            <button type="button" className={effective.textAlign === 'right' ? 'active' : ''} onClick={() => onPatchStyle({ textAlign: 'right' })} title="Text right"><AlignRight size={16} /></button>
+            <button type="button" className={effective.textAlign === 'justify' ? 'active' : ''} onClick={() => onPatchStyle({ textAlign: 'justify' })} title="Justify text"><AlignJustify size={16} /></button>
+          </div>
+        </> : null}
+
+        {parentNode ? <div className="placement-parent-row"><span>Parent layout: <strong>{String(parentEffective.display ?? parentNode.type)}</strong></span>{!parentIsGrid ? <button type="button" onClick={makeParentGrid}>Make 3×3 grid</button> : null}</div> : null}
+
+        {parentIsGrid ? <>
+          <div className="placement-label">Grid cell</div>
+          <div className="placement-grid" aria-label="Choose grid position">
+            {[1, 2, 3].flatMap((row) => [1, 2, 3].map((column) => {
+              const active = String(effective.gridColumnStart ?? '') === String(column) && String(effective.gridRowStart ?? '') === String(row);
+              return <button type="button" className={active ? 'active' : ''} key={`${column}-${row}`} onClick={() => onPatchStyle(gridCellStyles(column, row))} title={`Column ${column}, row ${row}`}><span>{column},{row}</span></button>;
+            }))}
+          </div>
+          <div className="field-pair compact-placement-fields">
+            <label>Column<input value={String(effective.gridColumnStart ?? '')} placeholder="1" onChange={(event) => onPatchStyle({ gridColumnStart: event.target.value })} /></label>
+            <label>Row<input value={String(effective.gridRowStart ?? '')} placeholder="1" onChange={(event) => onPatchStyle({ gridRowStart: event.target.value })} /></label>
+          </div>
+        </> : null}
+
+        <div className="placement-label">Position mode</div>
+        <div className="position-mode-buttons">
+          <button type="button" className={currentPosition !== 'absolute' && currentPosition !== 'fixed' ? 'active' : ''} onClick={restoreFlow}>Normal flow</button>
+          <button type="button" className={currentPosition === 'absolute' ? 'active' : ''} onClick={enableFreePosition}><Move size={14} /> Free position</button>
+        </div>
+        {currentPosition === 'absolute' || currentPosition === 'fixed' ? <div className="field-pair compact-placement-fields">
+          <label>X / Left<input value={String(effective.left ?? '')} placeholder="24px" onChange={(event) => onPatchStyle({ left: event.target.value })} /></label>
+          <label>Y / Top<input value={String(effective.top ?? '')} placeholder="24px" onChange={(event) => onPatchStyle({ top: event.target.value })} /></label>
+        </div> : null}
+      </section>
 
       {fonts.length ? (
         <section className="inspector-section">
