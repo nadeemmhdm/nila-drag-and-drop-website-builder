@@ -46,7 +46,8 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
 
   const startActivity = (label: string) => {
     const id = crypto.randomUUID();
-    setActivities((items) => [{ id, label, status: 'running' }, ...items].slice(0, 8));
+    const activity: Activity = { id, label, status: 'running' };
+    setActivities((items) => [activity, ...items].slice(0, 8));
     return id;
   };
   const finishActivity = (id: string, status: Activity['status'], detail?: string) => setActivities((items) => items.map((item) => item.id === id ? { ...item, status, detail } : item));
