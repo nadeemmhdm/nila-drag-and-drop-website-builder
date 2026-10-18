@@ -24,13 +24,11 @@ export type EditorNodeType =
   | 'input'
   | 'textarea'
   | 'select'
-  | 'checkbox'
-  | 'halftone-footer';
+  | 'checkbox';
 
 export type LinkType = 'page' | 'external' | 'anchor' | 'email' | 'phone';
 export type ListStyle = 'bullet' | 'number' | 'lower-alpha' | 'upper-alpha' | 'roman' | 'mixed';
 export type IconMode = 'lucide' | 'emoji';
-export type HalftonePreset = 'night' | 'paper' | 'ember' | 'cobalt';
 
 export interface NodeStyle {
   [property: string]: string | number | undefined;
@@ -68,15 +66,6 @@ export interface EditorNodeProps {
   listStyle?: ListStyle;
   options?: string[];
   checked?: boolean;
-  preset?: HalftonePreset;
-  warmColor?: string;
-  dotGap?: number;
-  radius?: number;
-  crop?: number;
-  grain?: number;
-  interactive?: boolean;
-  backToTop?: boolean;
-  footerColumns?: string[];
 }
 
 export interface EditorNode {
