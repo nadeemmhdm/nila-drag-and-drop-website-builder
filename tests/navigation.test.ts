@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { SECTION_PRESETS } from '../src/editor/catalog';
-import { isNavbarNode, navbarBrand, pageHasNavbar } from '../src/editor/navigation';
+import { isNavbarNode, navbarBrand, navbarItems, pageHasNavbar } from '../src/editor/navigation';
 
 const navbar = () => SECTION_PRESETS.find((preset) => preset.id === 'navbar-clean')!.build()[0];
 
 describe('navigation helpers', () => {
-  it('recognizes catalog navbar sections and reads their brand', () => {
+  it('recognizes catalog navbar sections, reads their brand and preserves configured links', () => {
     const node = navbar();
     expect(isNavbarNode(node)).toBe(true);
     expect(pageHasNavbar([node])).toBe(true);
     expect(navbarBrand(node)).toBe('Nila');
+    expect(navbarItems(node).map((item) => item.props.text)).toEqual(['Features', 'Pricing', 'Contact', 'Get started']);
   });
 
   it('does not classify ordinary sections as navigation', () => {

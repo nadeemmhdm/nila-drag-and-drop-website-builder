@@ -8,9 +8,9 @@ import { VIEWPORTS } from '../../core/constants';
 import HalftoneWordmarkFooter from './HalftoneWordmarkFooter';
 import { isHalftoneFooterNode } from '../halftoneFooterPresets';
 import { NilaIcon } from '../iconRegistry';
-import { normalizeAnchor, resolveLink } from '../linking';
+import { normalizeAnchor, resolveLink, type ResolvedLink } from '../linking';
 import { isContainerNode } from '../model';
-import { isNavbarNode, navbarBrand } from '../navigation';
+import { isNavbarNode, navbarBrand, navbarItems } from '../navigation';
 import { splitCanvasStyles } from '../placement';
 import { mergedResponsiveStyle } from '../responsive';
 import type { EditorNode, ListStyle } from '../types';
@@ -22,16 +22,30 @@ function listCssType(style:ListStyle|undefined){if(style==='number')return'decim
 function MixedList({items}:{items:string[]}){return <ul className="render-list render-list-mixed">{items.map((item,index)=><li key={`${item}-${index}`}><span className="mixed-marker">{index%2===0?`${Math.floor(index/2)+1}.`:`${String.fromCharCode(97+Math.floor(index/2)%26)}.`}</span><span>{item}</span></li>)}</ul>}
 function RenderList({node}:{node:EditorNode}){const items=node.props.items??[];const style=node.props.listStyle??'bullet';if(style==='mixed')return <MixedList items={items}/>;const Tag=style==='bullet'?'ul':'ol';return <Tag className="render-list" style={{listStyleType:listCssType(style)}}>{items.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</Tag>}
 
+interface PreviewNavEntry { key:string; label:string; link:ResolvedLink; }
 function PreviewResponsiveNav({node,pages,activePageId,viewport,onNavigatePage}:{node:EditorNode;pages:NilaPage[];activePageId:string;viewport:DeviceViewport;onNavigatePage:(pageId:string)=>void}){
   const [open,setOpen]=useState(false);
   const collapsed=viewport!=='desktop';
   const home=pages.find((page)=>page.isHome)??pages[0];
-  const links=pages.slice(0,10);
-  const navigate=(pageId:string)=>{setOpen(false);onNavigatePage(pageId)};
+  const configured=navbarItems(node);
+  const entries:PreviewNavEntry[]=configured.length
+    ?configured.map((item)=>({key:item.id,label:item.props.text?.trim()||item.name,link:resolveLink(item.props,pages)}))
+    :pages.slice(0,10).map((page)=>({key:page.id,label:page.name,link:{type:'page',href:page.isHome?'/':`/${page.slug}`,pageId:page.id}}));
+  const activate=(entry:PreviewNavEntry)=>{
+    setOpen(false);
+    if(entry.link.type==='page'&&entry.link.pageId){onNavigatePage(entry.link.pageId);return;}
+    if(entry.link.type==='anchor'){
+      if(entry.link.href!=='#')document.getElementById(entry.link.href.slice(1))?.scrollIntoView({behavior:'smooth',block:'start'});
+      return;
+    }
+    if(entry.link.href==='#')return;
+    if(entry.link.target==='_blank')window.open(entry.link.href,'_blank','noopener,noreferrer');
+    else window.location.assign(entry.link.href);
+  };
   return <nav className={`preview-responsive-nav${collapsed?' collapsed':''}${open?' open':''}`} aria-label="Site navigation">
-    <button type="button" className="preview-nav-brand" onClick={()=>home&&navigate(home.id)}>{navbarBrand(node,home?.name??'Site')}</button>
+    <button type="button" className="preview-nav-brand" onClick={()=>home&&onNavigatePage(home.id)}>{navbarBrand(node,home?.name??'Site')}</button>
     {collapsed?<button type="button" className="preview-nav-toggle" aria-label={open?'Close navigation':'Open navigation'} aria-expanded={open} onClick={()=>setOpen((value)=>!value)}><span/><span/><span/></button>:null}
-    <div className="preview-nav-links">{links.map((page)=><button type="button" key={page.id} className={page.id===activePageId?'active':''} onClick={()=>navigate(page.id)}>{page.name}</button>)}</div>
+    <div className="preview-nav-links">{entries.map((entry)=><button type="button" key={entry.key} className={entry.link.type==='page'&&entry.link.pageId===activePageId?'active':''} onClick={()=>activate(entry)}>{entry.label}</button>)}</div>
   </nav>;
 }
 
