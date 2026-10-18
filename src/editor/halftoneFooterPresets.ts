@@ -45,11 +45,13 @@ function buildHalftoneWordmarkFooter(): EditorNode[] {
     name: HALFTONE_CANVAS_NODE_NAME,
     text: 'halden',
     style: {
-      position: 'absolute', inset: 0, width: '100%', height: '100%', margin: 0,
+      position: 'relative', width: '100%', height: '560px', margin: 0,
       backgroundColor: '#0c0c0b', color: '#e9e4da', borderColor: '#e9762b',
       fontFamily: 'Inter, "Helvetica Neue", Arial, system-ui, sans-serif', fontWeight: 800,
       zIndex: 0,
     },
+    tablet: { height: '540px' },
+    mobile: { height: '520px' },
   });
 
   const top = div('Halftone footer top', [
@@ -61,13 +63,13 @@ function buildHalftoneWordmarkFooter(): EditorNode[] {
     linkColumn('Studio', [{ label: 'About' }, { label: 'Process' }, { label: 'Careers' }]),
     linkColumn('Contact', [{ label: 'hello@halden.co', href: 'mailto:hello@halden.co' }, { label: '+47 22 00 41 00', href: 'tel:+4722004100' }]),
   ], {
-    width: '100%', display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) repeat(3,minmax(0,1fr))', gap: '24px', padding: '34px 40px 0', position: 'relative', zIndex: 3, color: '#e9e4da', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    width: '100%', display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) repeat(3,minmax(0,1fr))', gap: '24px', padding: '34px 40px 0', position: 'absolute', left: 0, right: 0, top: 0, zIndex: 3, color: '#e9e4da', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
   }, { gridTemplateColumns: 'repeat(2,minmax(0,1fr))', padding: '28px 28px 0' }, { gridTemplateColumns: 'repeat(2,minmax(0,1fr))', padding: '24px 20px 0', gap: '18px' });
 
   const rule = div('Footer hairline', [
     patch('divider', { name: 'Footer rule line', style: { background: 'rgba(233,228,218,.18)', height: '1px' } }),
     link('Back to top ↑', '#top'),
-  ], { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '16px', margin: '28px 40px 0', position: 'relative', zIndex: 3, color: '#e9e4da' }, { margin: '24px 28px 0' }, { margin: '22px 20px 0' });
+  ], { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '16px', position: 'absolute', left: '40px', right: '40px', top: '155px', zIndex: 3, color: '#e9e4da' }, { left: '28px', right: '28px', top: '180px' }, { left: '20px', right: '20px', top: '235px' });
 
   const hint = paragraph('Interaction hint', 'Move across the wordmark · click for a shock wave', {
     position: 'absolute', left: '40px', bottom: '24px', zIndex: 3, width: 'fit-content', color: '#e9e4da', opacity: .42, fontSize: '10px', letterSpacing: '.14em', textTransform: 'uppercase',
