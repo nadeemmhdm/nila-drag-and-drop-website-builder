@@ -8,7 +8,7 @@ export const MAX_NODES = 10_000;
 export const MAX_NODE_DEPTH = 32;
 export const MAX_ASSETS = 256;
 
-const NODE_TYPES = new Set(['section','container','row','columns','grid','card','heading','paragraph','link','button','badge','icon','image','avatar','video','quote','list','divider','spacer','input','textarea','select','checkbox']);
+const NODE_TYPES = new Set(['section','container','div','row','columns','grid','card','heading','paragraph','link','button','badge','icon','image','avatar','video','quote','list','divider','spacer','input','textarea','select','checkbox']);
 const ASSET_EXTENSIONS: Record<string, 'image'|'video'|'font'> = { png:'image',jpg:'image',jpeg:'image',webp:'image',gif:'image',mp4:'video',webm:'video',woff2:'font',woff:'font',ttf:'font',otf:'font' };
 const DANGEROUS_KEYS = new Set(['__proto__','prototype','constructor']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
