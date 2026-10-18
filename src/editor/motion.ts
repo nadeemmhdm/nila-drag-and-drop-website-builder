@@ -84,7 +84,7 @@ export function applyMotionTree(nodes: EditorNode[], profile: MotionProfile = 's
         ...(heroImmediate ? {} : { animationTimeline: 'view()', animationRange: 'entry 6% cover 32%' }),
       };
     } else if (shouldAnimate) {
-      const next = { ...desktop, animationFillMode: desktop.animationFillMode ?? 'both' };
+      const next: NodeStyle = { ...desktop, animationFillMode: desktop.animationFillMode ?? 'both' };
       if (heroImmediate || desktop.animationIterationCount === 'infinite') {
         delete next.animationTimeline;
         delete next.animationRange;
