@@ -1,7 +1,7 @@
 {
   "name": "nila-drag-and-drop-website-builder",
   "private": true,
-  "version": "0.18.0-beta.1",
+  "version": "0.18.1-beta.1",
   "type": "module",
   "description": "Local-first, open-source drag-and-drop React + Vite website builder.",
   "scripts": {
