@@ -8,7 +8,7 @@ export const MAX_NODES = 10_000;
 export const MAX_NODE_DEPTH = 32;
 export const MAX_ASSETS = 256;
 
-const NODE_TYPES = new Set(['section','container','row','columns','grid','card','heading','paragraph','link','button','badge','icon','image','avatar','video','quote','list','divider','spacer','input','textarea','select','checkbox']);
+const NODE_TYPES = new Set(['section','container','div','row','columns','grid','card','heading','paragraph','link','button','badge','icon','image','avatar','video','quote','list','divider','spacer','input','textarea','select','checkbox','halftone-footer']);
 const ASSET_EXTENSIONS: Record<string, 'image'|'video'|'font'> = { png:'image',jpg:'image',jpeg:'image',webp:'image',gif:'image',mp4:'video',webm:'video',woff2:'font',woff:'font',ttf:'font',otf:'font' };
 const DANGEROUS_KEYS = new Set(['__proto__','prototype','constructor']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -136,7 +136,7 @@ export function validateWorkspaceSnapshot(value: unknown): WorkspaceSnapshot {
   const nodeState={count:0}; let homeCount=0; const pageIds=new Set<string>();
   for(const pageValue of root.pages){const page=record(pageValue,'page');safeKeys(page,'page',10);const pageId=text(page.id,'page.id',128);if(pageIds.has(pageId))throw new Error('Duplicate page id.');pageIds.add(pageId);text(page.name,'page.name',500);text(page.slug,'page.slug',100);if(bool(page.isHome,'page.isHome'))homeCount+=1;validatePageSeo(page.seo);if(!Array.isArray(page.nodes)||page.nodes.length>2_000)throw new Error('page.nodes is invalid.');for(const node of page.nodes)validateNode(node,1,nodeState);}
   if(homeCount!==1) throw new Error('Workspace must contain exactly one home page.'); if(!pageIds.has(root.activePageId as string)) throw new Error('Active page does not exist.');
-  if(!Array.isArray(root.assets)||root.assets.length>MAX_ASSETS) throw new Error('Workspace asset count is invalid.');
+  if(!Array.isArray(root.assets)||root.assets.length>MAX_ASSETS) throw new Error('Workspace assets are invalid.');
   let total=0; const assetIds=new Set<string>(); const fontAssetIds=new Set<string>();
   for(const assetValue of root.assets){const asset=validateAsset(assetValue);if(assetIds.has(asset.id))throw new Error('Duplicate asset id.');assetIds.add(asset.id);if(asset.kind==='font')fontAssetIds.add(asset.id);total+=asset.size;if(total>MAX_TOTAL_ASSET_BYTES)throw new Error('Workspace assets exceed the allowed total size.');}
   if(!Array.isArray(root.fonts)||root.fonts.length>MAX_ASSETS) throw new Error('Workspace fonts are invalid.');
