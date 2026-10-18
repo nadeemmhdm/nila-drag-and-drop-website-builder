@@ -7,7 +7,19 @@
   scrollbar-gutter:stable;
 }
 
-/* Preview is a website view, not an editor view. Keep only the top bar so Preview can be exited. */
+/* Preview is a website view, not an editor view. App adds preview-active explicitly so the grid never falls back to sidebar widths. */
+.nila-editor-host.preview-active .editor-workspace{grid-template-columns:minmax(0,1fr)!important;min-width:0}
+.nila-editor-host.preview-active .left-sidebar,
+.nila-editor-host.preview-active .right-sidebar{display:none!important}
+.nila-editor-host.preview-active .sidebar-collapse-toggle{display:none!important}
+.nila-editor-host.preview-active .workspace-main{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  background:#fff!important;
+  background-image:none!important;
+  overflow:auto!important;
+}
 .editor-workspace:has(.preview-help){grid-template-columns:minmax(0,1fr);min-width:0}
 .editor-workspace:has(.preview-help)>.left-sidebar,
 .editor-workspace:has(.preview-help)>.right-sidebar{display:none}
@@ -89,6 +101,19 @@
 .canvas-stage.preview-mode .render-video,
 .canvas-stage.preview-mode .render-button,
 .canvas-stage.preview-mode .render-link{max-width:100%;transition:inherit}
+
+/* Nila-native Slide Tabs. Equal tab widths keep the cursor responsive without a runtime dependency. */
+#slide-tabs-cursor{transition:transform 280ms cubic-bezier(.2,.8,.2,1),width 220ms ease!important}
+#slide-tabs:has(#slide-tab-0:hover) #slide-tabs-cursor,
+#slide-tabs:has(#slide-tab-0:focus-visible) #slide-tabs-cursor{transform:translateX(0)!important}
+#slide-tabs:has(#slide-tab-1:hover) #slide-tabs-cursor,
+#slide-tabs:has(#slide-tab-1:focus-visible) #slide-tabs-cursor{transform:translateX(100%)!important}
+#slide-tabs:has(#slide-tab-2:hover) #slide-tabs-cursor,
+#slide-tabs:has(#slide-tab-2:focus-visible) #slide-tabs-cursor{transform:translateX(200%)!important}
+#slide-tabs:has(#slide-tab-3:hover) #slide-tabs-cursor,
+#slide-tabs:has(#slide-tab-3:focus-visible) #slide-tabs-cursor{transform:translateX(300%)!important}
+#slide-tabs:has(#slide-tab-4:hover) #slide-tabs-cursor,
+#slide-tabs:has(#slide-tab-4:focus-visible) #slide-tabs-cursor{transform:translateX(400%)!important}
 
 .preview-responsive-nav{
   position:relative;
