@@ -1,3 +1,4 @@
+import { applyDefaultNodeMotion } from './motion';
 import type { EditorNode, EditorNodeType, NodeLocation, ResponsiveStyles } from './types';
 
 const id = () => crypto.randomUUID();
@@ -7,7 +8,7 @@ const responsive = (
   mobile: Record<string, string | number> = {},
 ): ResponsiveStyles => ({ desktop, tablet, mobile });
 
-export function createNode(type: EditorNodeType): EditorNode {
+function createRawNode(type: EditorNodeType): EditorNode {
   const shared: Pick<EditorNode, 'id' | 'type' | 'children' | 'locked' | 'hidden'> = { id: id(), type, children: [], locked: false, hidden: false };
   switch (type) {
     case 'section': return { ...shared, name: 'Section', props: {}, styles: responsive({ width: '100%', padding: '72px 32px', background: '#ffffff', overflowX: 'clip' }, { padding: '56px 24px' }, { padding: '40px 16px' }) };
@@ -35,6 +36,10 @@ export function createNode(type: EditorNodeType): EditorNode {
     case 'select': return { ...shared, name: 'Select', props: { label: 'Option', fieldName: 'option', required: false, options: ['Option one', 'Option two', 'Option three'] }, styles: responsive({ width: '100%', maxWidth: '100%', minWidth: 0, padding: '12px 14px', border: '1px solid #d1d5db', borderRadius: '10px', background: '#ffffff' }) };
     case 'checkbox': return { ...shared, name: 'Checkbox', props: { label: 'I agree', fieldName: 'agreement', checked: false, required: false }, styles: responsive({ width: 'fit-content', maxWidth: '100%', display: 'flex', alignItems: 'center', gap: '8px', color: '#374151' }) };
   }
+}
+
+export function createNode(type: EditorNodeType): EditorNode {
+  return applyDefaultNodeMotion(createRawNode(type));
 }
 
 export function cloneNode(node: EditorNode): EditorNode { return { ...structuredClone(node), id: id(), name: `${node.name} copy`, children: node.children.map(cloneNode) }; }
