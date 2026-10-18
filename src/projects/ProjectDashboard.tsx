@@ -7,7 +7,7 @@ import { createDefaultPageSeo, createDefaultSiteSeo } from '../seo/defaults';
 import { deleteBackups, deleteWorkspace, listWorkspaces, saveWorkspace } from '../workspace/storage';
 import type { WorkspaceSnapshot } from '../workspace/types';
 import { deleteProjectMeta, getProjectMeta, saveProjectMeta } from './projectMeta';
-import { projectDisplayId } from './projectId';
+import { createWorkspaceId, projectDisplayId } from './projectId';
 
 interface Props { onOpen: (snapshot: WorkspaceSnapshot) => void | Promise<void>; }
 type TemplateChoice = { id: string; name: string; description: string; preset?: CatalogPreset };
@@ -68,10 +68,16 @@ export function ProjectDashboard({ onOpen }: Props) {
     setError('');
     try {
       const now = new Date().toISOString();
-      const id = crypto.randomUUID();
-      const pageId = crypto.randomUUID();
+      const id = createWorkspaceId();
+      const pageId = createWorkspaceId();
       const choice = templateChoices.find((item) => item.id === templateId) ?? templateChoices[0];
-      const nodes = choice.preset ? choice.preset.build() : [];
+      let nodes: WorkspaceSnapshot['pages'][number]['nodes'];
+      try {
+        nodes = choice.preset ? choice.preset.build() : [];
+      } catch (cause) {
+        const reason = cause instanceof Error ? cause.message : 'Unknown template error';
+        throw new Error(`Unable to prepare “${choice.name}”: ${reason}`);
+      }
       const snapshot: WorkspaceSnapshot = {
         id,
         ownerFolder: 'local-user',
@@ -85,8 +91,16 @@ export function ProjectDashboard({ onOpen }: Props) {
         createdAt: now,
         savedAt: now,
       };
-      saveProjectMeta(id, { description: description.trim(), templateId: choice.id, installedLibraryIds: [] });
+
+      // IndexedDB is authoritative. Optional local metadata must never block
+      // creation of the actual project workspace.
       await saveWorkspace(snapshot, true);
+      try {
+        saveProjectMeta(id, { description: description.trim(), templateId: choice.id, installedLibraryIds: [] });
+      } catch {
+        // The project remains usable even if localStorage is unavailable.
+      }
+
       setProjects((current) => [snapshot, ...current.filter((item) => item.id !== snapshot.id)]);
       setName(''); setDescription(''); setTemplateId('blank'); setTemplateQuery(''); setCreating(false);
       await onOpen(snapshot);
@@ -107,15 +121,15 @@ export function ProjectDashboard({ onOpen }: Props) {
 
   return (
     <main className="projects-screen">
-      <header className="projects-topbar"><div className="projects-brand"><span>N</span><div><strong>Nila Website Builder</strong><small>Local-first React website projects</small></div></div><button type="button" className="projects-new compact" onClick={() => setCreating(true)}><Plus size={16}/> New project</button></header>
-      <section className="projects-hero"><div><span className="projects-kicker">YOUR WORKSPACE</span><h1>Build websites inside projects.</h1><p>Create a project first, choose a distinct animated starter or Blank, then design pages with autosave enabled.</p></div><button type="button" className="projects-new" onClick={() => setCreating(true)}><FilePlus2 size={18}/> New Project</button></section>
+      <header className="projects-topbar"><div className="projects-brand"><span>N</span><div><strong>Nila Website Builder</strong><small>Local-first React website projects</small></div></div><button type="button" className="projects-new compact" onClick={() => { setError(''); setCreating(true); }}><Plus size={16}/> New project</button></header>
+      <section className="projects-hero"><div><span className="projects-kicker">YOUR WORKSPACE</span><h1>Build websites inside projects.</h1><p>Create a project first, choose a distinct animated starter or Blank, then design pages with autosave enabled.</p></div><button type="button" className="projects-new" onClick={() => { setError(''); setCreating(true); }}><FilePlus2 size={18}/> New Project</button></section>
       <section className="projects-section">
         <div className="projects-section-head"><div><h2>Recent projects</h2><p>Everything is saved locally while you work. Every project has a stable ID that stays the same after refresh.</p></div><button type="button" className="text-button" onClick={() => setShowAll((value) => !value)}>{showAll ? 'Show recent' : 'View all'}</button></div>
         <div className="projects-search"><Search size={16}/><input value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search projects or project ID" /></div>
-        {error ? <div className="projects-storage-error">{error}</div> : null}
-        {loading ? <div className="projects-empty"><strong>Loading projects…</strong></div> : visibleProjects.length ? <div className="project-grid">{visibleProjects.map((project) => { const meta=getProjectMeta(project.id); const template=templateChoices.find((item)=>item.id===meta.templateId); const displayId=projectDisplayId(project.id); return <article className="project-card" key={project.id}><button type="button" className="project-card-open" onClick={() => void onOpen(project)}><div className="project-thumb"><LayoutTemplate size={28}/><span>{template?.name??'Project'} · {project.pages.length} {project.pages.length===1?'page':'pages'}</span></div><div className="project-card-copy"><div className="project-card-title-row"><strong>{project.name}</strong><span className="project-id-badge">{displayId}</span></div><p>{meta.description || project.pages.map((page)=>page.name).join(' · ') || 'No description'}</p><small><Clock3 size={13}/> {new Date(project.savedAt).toLocaleString()}</small></div></button><button type="button" className="project-delete" onClick={()=>void removeProject(project)} aria-label={`Delete ${project.name}`}><Trash2 size={15}/></button></article>; })}</div> : <div className="projects-empty"><FolderOpen size={30}/><strong>{query.trim() ? 'No matching projects' : 'No projects yet'}</strong><p>{query.trim() ? 'Try a different search.' : 'Create your first project to start building.'}</p>{!query.trim()?<button type="button" onClick={()=>setCreating(true)}>Create project</button>:null}</div>}
+        {error && !creating ? <div className="projects-storage-error">{error}</div> : null}
+        {loading ? <div className="projects-empty"><strong>Loading projects…</strong></div> : visibleProjects.length ? <div className="project-grid">{visibleProjects.map((project) => { const meta=getProjectMeta(project.id); const template=templateChoices.find((item)=>item.id===meta.templateId); const displayId=projectDisplayId(project.id); return <article className="project-card" key={project.id}><button type="button" className="project-card-open" onClick={() => void onOpen(project)}><div className="project-thumb"><LayoutTemplate size={28}/><span>{template?.name??'Project'} · {project.pages.length} {project.pages.length===1?'page':'pages'}</span></div><div className="project-card-copy"><div className="project-card-title-row"><strong>{project.name}</strong><span className="project-id-badge">{displayId}</span></div><p>{meta.description || project.pages.map((page)=>page.name).join(' · ') || 'No description'}</p><small><Clock3 size={13}/> {new Date(project.savedAt).toLocaleString()}</small></div></button><button type="button" className="project-delete" onClick={()=>void removeProject(project)} aria-label={`Delete ${project.name}`}><Trash2 size={15}/></button></article>; })}</div> : <div className="projects-empty"><FolderOpen size={30}/><strong>{query.trim() ? 'No matching projects' : 'No projects yet'}</strong><p>{query.trim() ? 'Try a different search.' : 'Create your first project to start building.'}</p>{!query.trim()?<button type="button" onClick={()=>{ setError(''); setCreating(true); }}>Create project</button>:null}</div>}
       </section>
-      {creating ? <div className="project-modal-backdrop" role="presentation"><section className="project-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title"><div className="project-modal-head"><div><span>NEW PROJECT</span><h2 id="new-project-title">Create a website project</h2></div><button type="button" onClick={()=>setCreating(false)} aria-label="Close"><X size={18}/></button></div><label>Project name<input autoFocus value={name} onChange={(event)=>setName(event.target.value)} placeholder="My website" maxLength={120}/></label><label>Description <small>Optional</small><textarea value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="What are you building?" maxLength={600}/></label><div className="template-picker-head"><div><strong>Starting template</strong><span>Blank is selected by default. Templates have distinct layouts and motion profiles.</span></div><div className="template-search"><Search size={14}/><input value={templateQuery} onChange={(event)=>setTemplateQuery(event.target.value)} placeholder="Search all templates"/></div></div><div className="template-choice-grid">{visibleTemplates.map((choice)=><button type="button" key={choice.id} className={templateId===choice.id?'selected':''} onClick={()=>setTemplateId(choice.id)}><div className="template-choice-preview"><LayoutTemplate size={20}/></div><strong>{choice.name}</strong><span>{choice.description}</span></button>)}</div><div className="project-modal-actions"><button type="button" className="secondary" onClick={()=>setCreating(false)}>Cancel</button><button type="button" className="primary" disabled={!name.trim()||busy} onClick={()=>void createProject()}>{busy?'Creating…':'Create project'}</button></div></section></div> : null}
+      {creating ? <div className="project-modal-backdrop" role="presentation"><section className="project-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title"><div className="project-modal-head"><div><span>NEW PROJECT</span><h2 id="new-project-title">Create a website project</h2></div><button type="button" onClick={()=>setCreating(false)} aria-label="Close"><X size={18}/></button></div><label>Project name<input autoFocus value={name} onChange={(event)=>setName(event.target.value)} placeholder="My website" maxLength={120}/></label><label>Description <small>Optional</small><textarea value={description} onChange={(event)=>setDescription(event.target.value)} placeholder="What are you building?" maxLength={600}/></label><div className="template-picker-head"><div><strong>Starting template</strong><span>Blank is selected by default. Templates have distinct layouts and motion profiles.</span></div><div className="template-search"><Search size={14}/><input value={templateQuery} onChange={(event)=>setTemplateQuery(event.target.value)} placeholder="Search all templates"/></div></div><div className="template-choice-grid">{visibleTemplates.map((choice)=><button type="button" key={choice.id} className={templateId===choice.id?'selected':''} onClick={()=>setTemplateId(choice.id)}><div className="template-choice-preview"><LayoutTemplate size={20}/></div><strong>{choice.name}</strong><span>{choice.description}</span></button>)}</div>{error ? <div className="projects-storage-error project-modal-error" role="alert">{error}</div> : null}<div className="project-modal-actions"><button type="button" className="secondary" onClick={()=>setCreating(false)}>Cancel</button><button type="button" className="primary" disabled={!name.trim()||busy} onClick={()=>void createProject()}>{busy?'Creating…':'Create project'}</button></div></section></div> : null}
     </main>
   );
 }
