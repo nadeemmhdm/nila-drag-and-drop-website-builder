@@ -8,30 +8,73 @@
 }
 
 /* Preview is a website view, not an editor view. Keep only the top bar so Preview can be exited. */
-.editor-workspace:has(.preview-help){grid-template-columns:minmax(0,1fr)}
+.editor-workspace:has(.preview-help){grid-template-columns:minmax(0,1fr);min-width:0}
 .editor-workspace:has(.preview-help)>.left-sidebar,
 .editor-workspace:has(.preview-help)>.right-sidebar{display:none}
 .nila-editor-host:has(.preview-help)>.sidebar-collapse-toggle{display:none}
 .editor-workspace:has(.preview-help) .workspace-main{
+  width:100%;
+  min-width:0;
+  max-width:100%;
   background:#fff;
   background-image:none;
   overflow:auto;
 }
 .canvas-stage.preview-mode{
-  min-width:100%;
+  width:100%;
+  max-width:100%;
+  min-width:0;
   min-height:100%;
   padding:0 0 48px;
-  align-items:center;
+  align-items:stretch;
   background:#fff;
+  overflow:visible;
 }
-.canvas-stage.preview-mode .canvas-viewport-wrap{min-height:100%}
-.canvas-stage.preview-mode .canvas-zoom{transform:none!important}
+.canvas-stage.preview-mode .canvas-viewport-wrap{
+  min-width:0;
+  max-width:100%;
+  min-height:100%;
+  flex:none;
+}
+.canvas-stage.preview-mode.preview-desktop .canvas-viewport-wrap{
+  width:100%!important;
+  max-width:100%;
+  align-self:stretch;
+}
+.canvas-stage.preview-mode.preview-tablet .canvas-viewport-wrap,
+.canvas-stage.preview-mode.preview-mobile .canvas-viewport-wrap{
+  align-self:center;
+  flex:none;
+}
+.canvas-stage.preview-mode .canvas-zoom{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  transform:none!important;
+}
 .canvas-stage.preview-mode .canvas-document{
+  width:100%;
+  min-width:0;
+  max-width:100%;
   min-height:calc(100vh - 86px);
   border:0;
   box-shadow:none;
+  overflow-x:clip;
+}
+.canvas-stage.preview-mode .canvas-node,
+.canvas-stage.preview-mode .render-surface,
+.canvas-stage.preview-mode .node-children{
+  min-width:0;
+  max-width:100%;
 }
 .canvas-stage.preview-mode .canvas-node{outline:0!important}
+.canvas-stage.preview-mode .render-heading,
+.canvas-stage.preview-mode .render-paragraph,
+.canvas-stage.preview-mode .render-quote,
+.canvas-stage.preview-mode .render-list{
+  overflow-wrap:break-word;
+  word-break:normal;
+}
 .canvas-stage.preview-mode .render-surface{
   transition:var(--nila-motion-transition,transform 260ms cubic-bezier(.2,.8,.2,1),box-shadow 260ms ease,filter 260ms ease,opacity 260ms ease);
   transform-origin:center;
@@ -43,8 +86,9 @@
 }
 .canvas-stage.preview-mode .render-image,
 .canvas-stage.preview-mode .render-avatar,
+.canvas-stage.preview-mode .render-video,
 .canvas-stage.preview-mode .render-button,
-.canvas-stage.preview-mode .render-link{transition:inherit}
+.canvas-stage.preview-mode .render-link{max-width:100%;transition:inherit}
 
 .preview-responsive-nav{
   position:relative;
