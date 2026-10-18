@@ -24,8 +24,7 @@ export type EditorNodeType =
   | 'input'
   | 'textarea'
   | 'select'
-  | 'checkbox'
-  | 'halftoneFooter';
+  | 'checkbox';
 
 export type LinkType = 'page' | 'external' | 'anchor' | 'email' | 'phone';
 export type ListStyle = 'bullet' | 'number' | 'lower-alpha' | 'upper-alpha' | 'roman' | 'mixed';
