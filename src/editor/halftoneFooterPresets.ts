@@ -48,7 +48,7 @@ function buildHalftoneWordmarkFooter(): EditorNode[] {
       position: 'absolute', inset: 0, width: '100%', height: '100%', margin: 0,
       backgroundColor: '#0c0c0b', color: '#e9e4da', borderColor: '#e9762b',
       fontFamily: 'Inter, "Helvetica Neue", Arial, system-ui, sans-serif', fontWeight: 800,
-      zIndex: 0, pointerEvents: 'none',
+      zIndex: 0,
     },
   });
 
