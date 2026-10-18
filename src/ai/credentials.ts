@@ -46,12 +46,12 @@ function openDb(): Promise<IDBDatabase> {
 async function getMasterKey(db: IDBDatabase): Promise<CryptoKey> {
   const readTx = db.transaction(STORE_NAME, 'readonly');
   const existing = await request(readTx.objectStore(STORE_NAME).get(MASTER_KEY_ID));
-  await txDone(readTx);
   if (existing) return existing as CryptoKey;
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
   const writeTx = db.transaction(STORE_NAME, 'readwrite');
+  const done = txDone(writeTx);
   writeTx.objectStore(STORE_NAME).put(key, MASTER_KEY_ID);
-  await txDone(writeTx);
+  await done;
   return key;
 }
 
@@ -70,12 +70,14 @@ async function decryptSecret(key: CryptoKey, value: EncryptedSecret): Promise<st
 }
 
 async function writeSecret(db: IDBDatabase, key: CryptoKey, provider: AiProvider, value: string) {
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
   const clean = value.trim();
-  if (clean) store.put(await encryptSecret(key, value), `provider:${provider}`);
+  const encrypted = clean ? await encryptSecret(key, value) : null;
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const done = txDone(tx);
+  const store = tx.objectStore(STORE_NAME);
+  if (encrypted) store.put(encrypted, `provider:${provider}`);
   else store.delete(`provider:${provider}`);
-  await txDone(tx);
+  await done;
 }
 
 async function migrateLegacy(db: IDBDatabase, key: CryptoKey) {
@@ -109,7 +111,6 @@ export function initializeAiCredentials(): Promise<void> {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const values = await Promise.all(providers.map((provider) => request(store.get(`provider:${provider}`))));
-      await txDone(tx);
       for (let index = 0; index < providers.length; index += 1) {
         const encrypted = values[index] as EncryptedSecret | undefined;
         if (!encrypted) continue;
