@@ -22,6 +22,20 @@ export function navbarBrand(node: EditorNode, fallback = 'Site') {
   return result || fallback;
 }
 
+export function navbarItems(node: EditorNode) {
+  const items: EditorNode[] = [];
+  const visit = (nodes: EditorNode[]) => {
+    for (const child of nodes) {
+      if ((child.type === 'link' || child.type === 'button') && child.props.text?.trim()) {
+        items.push(child);
+      }
+      if (child.children.length) visit(child.children);
+    }
+  };
+  visit(node.children);
+  return items.slice(0, 12);
+}
+
 export function pageHasNavbar(nodes: EditorNode[]) {
   return nodes.some(isNavbarNode);
 }
