@@ -46,6 +46,23 @@ function hoverVars(type: EditorNodeType, profile: MotionProfile, current: NodeSt
   return next;
 }
 
+export function applyDefaultNodeMotion(node: EditorNode, profile: MotionProfile = 'soft'): EditorNode {
+  const motion = profileMotion[profile];
+  const structural = STRUCTURAL.has(node.type);
+  const shouldAnimate = !structural && node.type !== 'divider' && node.type !== 'spacer';
+  let desktop = hoverVars(node.type, profile, node.styles.desktop);
+  if (shouldAnimate && String(desktop.animationName ?? 'none') === 'none') {
+    desktop = {
+      ...desktop,
+      animationName: entranceFor(node, 0),
+      animationDuration: `${motion.duration}ms`,
+      animationTimingFunction: motion.curve,
+      animationFillMode: 'both',
+    };
+  }
+  return { ...node, styles: { ...node.styles, desktop } };
+}
+
 export function applyMotionTree(nodes: EditorNode[], profile: MotionProfile = 'soft'): EditorNode[] {
   const motion = profileMotion[profile];
   let order = 0;
@@ -67,11 +84,15 @@ export function applyMotionTree(nodes: EditorNode[], profile: MotionProfile = 's
         ...(heroImmediate ? {} : { animationTimeline: 'view()', animationRange: 'entry 6% cover 32%' }),
       };
     } else if (shouldAnimate) {
-      desktop = {
-        ...desktop,
-        animationFillMode: desktop.animationFillMode ?? 'both',
-        ...(heroImmediate || desktop.animationIterationCount === 'infinite' ? {} : { animationTimeline: desktop.animationTimeline ?? 'view()', animationRange: desktop.animationRange ?? 'entry 6% cover 32%' }),
-      };
+      const next = { ...desktop, animationFillMode: desktop.animationFillMode ?? 'both' };
+      if (heroImmediate || desktop.animationIterationCount === 'infinite') {
+        delete next.animationTimeline;
+        delete next.animationRange;
+      } else {
+        next.animationTimeline = desktop.animationTimeline ?? 'view()';
+        next.animationRange = desktop.animationRange ?? 'entry 6% cover 32%';
+      }
+      desktop = next;
     }
     return {
       ...node,
