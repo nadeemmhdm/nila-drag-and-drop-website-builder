@@ -30,6 +30,7 @@ describe('Halftone Wordmark Footer', () => {
     expect(wordmark?.styles.desktop.backgroundColor).toBe('#0c0c0b');
     expect(wordmark?.styles.desktop.color).toBe('#e9e4da');
     expect(wordmark?.styles.desktop.borderColor).toBe('#e9762b');
+    expect(wordmark?.styles.desktop.pointerEvents).not.toBe('none');
   });
 
   it('exports a standalone interactive React canvas component', () => {
@@ -38,8 +39,10 @@ describe('Halftone Wordmark Footer', () => {
     const files = generateProjectFiles({ projectName: workspace.name, pages: workspace.pages, assets: workspace.assets, fonts: workspace.fonts, seo: workspace.seo });
     const canvas = files.find((file) => file.path === 'src/components/HalftoneWordmarkCanvas.tsx');
     const pageView = files.find((file) => file.path === 'src/components/PageView.tsx');
-    expect(String(canvas?.content)).toContain('ResizeObserver');
-    expect(String(canvas?.content)).toContain('pointermove');
+    const canvasSource = String(canvas?.content);
+    expect(canvasSource).toContain('ResizeObserver');
+    expect(canvasSource).toContain('pointermove');
+    expect(canvasSource).not.toContain("style={{position:'relative',overflow:'hidden'}}");
     expect(String(pageView?.content)).toContain('Halftone Canvas Wordmark');
     expect(String(pageView?.content)).toContain('HalftoneWordmarkCanvas');
   });
