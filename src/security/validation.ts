@@ -42,6 +42,7 @@ function validateStyles(value: unknown, label: string) {
     const style=record(styles[viewport],`${label}.${viewport}`); safeKeys(style,`${label}.${viewport}`,120);
     for (const [key,val] of Object.entries(style)) {
       if (DANGEROUS_KEYS.has(key) || key.length > 80) throw new Error(`${label} contains an unsafe style key.`);
+      if (val === undefined) continue;
       if (typeof val !== 'string' && typeof val !== 'number') throw new Error(`${label}.${key} has an invalid value.`);
       if (typeof val === 'string' && val.length > 5_000) throw new Error(`${label}.${key} is too large.`);
     }
@@ -136,7 +137,7 @@ export function validateWorkspaceSnapshot(value: unknown): WorkspaceSnapshot {
   const nodeState={count:0}; let homeCount=0; const pageIds=new Set<string>();
   for(const pageValue of root.pages){const page=record(pageValue,'page');safeKeys(page,'page',10);const pageId=text(page.id,'page.id',128);if(pageIds.has(pageId))throw new Error('Duplicate page id.');pageIds.add(pageId);text(page.name,'page.name',500);text(page.slug,'page.slug',100);if(bool(page.isHome,'page.isHome'))homeCount+=1;validatePageSeo(page.seo);if(!Array.isArray(page.nodes)||page.nodes.length>2_000)throw new Error('page.nodes is invalid.');for(const node of page.nodes)validateNode(node,1,nodeState);}
   if(homeCount!==1) throw new Error('Workspace must contain exactly one home page.'); if(!pageIds.has(root.activePageId as string)) throw new Error('Active page does not exist.');
-  if(!Array.isArray(root.assets)||root.assets.length>MAX_ASSETS) throw new Error('Workspace asset count is invalid.');
+  if(!Array.isArray(root.assets)||root.assets.length>MAX_ASSETS) throw new Error('Workspace assets are invalid.');
   let total=0; const assetIds=new Set<string>(); const fontAssetIds=new Set<string>();
   for(const assetValue of root.assets){const asset=validateAsset(assetValue);if(assetIds.has(asset.id))throw new Error('Duplicate asset id.');assetIds.add(asset.id);if(asset.kind==='font')fontAssetIds.add(asset.id);total+=asset.size;if(total>MAX_TOTAL_ASSET_BYTES)throw new Error('Workspace assets exceed the allowed total size.');}
   if(!Array.isArray(root.fonts)||root.fonts.length>MAX_ASSETS) throw new Error('Workspace fonts are invalid.');
