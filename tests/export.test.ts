@@ -73,4 +73,18 @@ describe('generated React project',()=>{
     expect(pageView).toContain('p.required');
     expect(pageView).toContain('p.rows');
   });
+  it('exports responsive hamburger navigation and hover motion',()=>{
+    const files=generatedFiles();
+    const pageView=String(files['src/components/PageView.tsx'].content);
+    const css=String(files['src/styles.css'].content);
+    expect(pageView).toContain('function ResponsiveNav');
+    expect(pageView).toContain('nila-site-nav-toggle');
+    expect(pageView).toContain('aria-expanded={open}');
+    expect(pageView).toContain('data-nila-internal="true"');
+    expect(css).toContain('@media(max-width:900px)');
+    expect(css).toContain('.nila-site-nav.open .nila-site-nav-links');
+    expect(css).toContain('.nila-node:hover');
+    expect(css).toContain('--nila-hover-transform');
+    expect(css).toContain('prefers-reduced-motion');
+  });
 });

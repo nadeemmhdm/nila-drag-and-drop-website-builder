@@ -1,7 +1,8 @@
-import { Bot, CheckCircle2, KeyRound, Loader2, RefreshCw, Send, Server, Sparkles, WandSparkles } from 'lucide-react';
+import { Bot, CheckCircle2, KeyRound, Loader2, RefreshCw, Send, Server, Sparkles, Trash2, WandSparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { NilaPage, NilaSiteSeo } from '../../core/project';
 import type { EditorNode } from '../types';
+import { loadAiApiKey, saveAiApiKey } from '../../ai/credentials';
 import { AI_DEFAULTS, listAiModels, loadAiSettings, saveAiSettings, testAiConnection, usesLocalAiBridge, type AiConnection, type AiProvider } from '../../ai/client';
 import { applyAiSeoPlan, enhanceContent, generateSeoPlan, generateWebsitePlan, materializeAiSitePlan } from '../../ai/sitePlanner';
 
@@ -36,7 +37,7 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
   const [provider, setProvider] = useState<AiProvider>(saved.provider);
   const [model, setModel] = useState(saved.model || AI_DEFAULTS[saved.provider].model);
   const [baseUrl, setBaseUrl] = useState(saved.baseUrl ?? AI_DEFAULTS[saved.provider].baseUrl ?? '');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => loadAiApiKey(saved.provider));
   const [models, setModels] = useState<string[]>([]);
   const [modelsBusy, setModelsBusy] = useState(false);
   const [modelsError, setModelsError] = useState('');
@@ -51,19 +52,28 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
   const keyRequired = provider !== 'custom';
   const connectionReady = Boolean(model.trim()) && (!keyRequired || Boolean(apiKey.trim()));
 
-  const persist = (nextProvider = provider, nextModel = model, nextBase = baseUrl) => {
+  const persist = (nextProvider = provider, nextModel = model, nextBase = baseUrl, nextKey = apiKey) => {
     saveAiSettings({ provider: nextProvider, model: nextModel, baseUrl: nextBase || undefined });
+    saveAiApiKey(nextProvider, nextKey);
   };
 
   const changeProvider = (next: AiProvider) => {
+    persist();
     const defaults = AI_DEFAULTS[next];
     setProvider(next);
     setModel(defaults.model);
     setBaseUrl(defaults.baseUrl ?? '');
-    setApiKey('');
+    setApiKey(loadAiApiKey(next));
     setModels([]);
     setModelsError('');
     saveAiSettings({ provider: next, model: defaults.model, baseUrl: defaults.baseUrl });
+  };
+
+  const clearSavedKey = () => {
+    setApiKey('');
+    saveAiApiKey(provider, '');
+    setModels([]);
+    setModelsError('Saved key cleared for this provider.');
   };
 
   const startActivity = (label: string) => {
@@ -86,6 +96,7 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
 
   const loadModels = async () => {
     if (modelsBusy) return;
+    persist();
     setModelsBusy(true);
     setModelsError('');
     try {
@@ -136,14 +147,15 @@ export function AiPanel({ projectName, pages, siteSeo, selectedNode, onReplaceWe
 
   return <div className="ai-panel ai-panel-v2">
     <div className="ai-hero"><div className="ai-orb"><Bot size={20}/></div><div><strong>Nila AI</strong><span>Build, write and optimize with your provider</span></div></div>
-    <div className="ai-security-note"><KeyRound size={14}/><span>API keys are memory-only. Nila never saves them to localStorage, project files or exported websites.</span></div>
+    <div className="ai-security-note"><KeyRound size={14}/><span>Provider keys are saved once on this local browser/device and reused by every Nila project. Keys are never written into project files, backups or exported websites.</span></div>
 
     <section className="ai-card ai-provider-card">
-      <div className="ai-card-heading"><div><h3>Provider connection</h3><p>Choose a provider, enter its key, load available models, then test before using AI actions.</p></div><span className={`ai-bridge-badge${bridgeActive ? ' active' : ''}`}><Server size={12}/>{bridgeActive ? 'Local bridge active' : 'Direct browser mode'}</span></div>
+      <div className="ai-card-heading"><div><h3>Provider connection</h3><p>Choose a provider, save its key once, load available models, then use the same connection across all projects.</p></div><span className={`ai-bridge-badge${bridgeActive ? ' active' : ''}`}><Server size={12}/>{bridgeActive ? 'Local bridge active' : 'Direct browser mode'}</span></div>
       <label>AI provider<select value={provider} onChange={(event) => changeProvider(event.target.value as AiProvider)}>{(Object.keys(providerLabels) as AiProvider[]).map((item) => <option key={item} value={item}>{providerLabels[item]}{item === 'ollama' ? ' · Recommended' : ''}</option>)}</select></label>
       <div className="ai-provider-help">{providerHelp[provider]}</div>
       {provider === 'custom' ? <label>Base URL<input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} onBlur={() => persist()} placeholder="http://127.0.0.1:11434/v1"/><small>Must expose OpenAI-compatible <code>/models</code> and <code>/chat/completions</code> endpoints.</small></label> : null}
-      <label>API key<input type="password" value={apiKey} onChange={(event) => { setApiKey(event.target.value); setModelsError(''); }} autoComplete="new-password" spellCheck={false} placeholder={provider === 'custom' ? 'Optional for local providers' : 'Required — kept in memory only'}/></label>
+      <label>API key<input type="password" value={apiKey} onChange={(event) => { setApiKey(event.target.value); setModelsError(''); }} onBlur={() => persist()} autoComplete="new-password" spellCheck={false} placeholder={provider === 'custom' ? 'Optional for local providers' : 'Required — saved on this device'}/></label>
+      {apiKey ? <button type="button" className="ai-secondary ai-clear-key" onClick={clearSavedKey}><Trash2 size={13}/> Clear saved key</button> : null}
       <div className="ai-model-row"><label>Model<input list="nila-ai-models" value={model} onChange={(event) => setModel(event.target.value)} onBlur={() => persist()} placeholder="Model name"/><datalist id="nila-ai-models">{models.map((item) => <option value={item} key={item}/>)}</datalist></label><button type="button" className="ai-model-refresh" disabled={modelsBusy || (keyRequired && !apiKey.trim())} onClick={() => void loadModels()}>{modelsBusy ? <Loader2 className="spin" size={14}/> : <RefreshCw size={14}/>}<span>{models.length ? 'Refresh' : 'Load models'}</span></button></div>
       {models.length ? <div className="ai-model-count"><CheckCircle2 size={13}/>{models.length} model{models.length === 1 ? '' : 's'} available. Start typing to search the list.</div> : null}
       {modelsError ? <div className="ai-provider-error">{modelsError}</div> : null}

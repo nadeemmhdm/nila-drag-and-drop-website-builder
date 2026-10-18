@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { initializeAiCredentials } from './ai/credentials';
 import { EditorShell } from './editor/EditorShell';
 import { ProjectDashboard } from './projects/ProjectDashboard';
 import { saveWorkspace } from './workspace/storage';
@@ -10,6 +11,13 @@ export function App() {
   const [editorKey, setEditorKey] = useState('editor');
   const [leftHidden, setLeftHidden] = useState(false);
   const [rightHidden, setRightHidden] = useState(false);
+  const [credentialsReady, setCredentialsReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void initializeAiCredentials().finally(() => { if (active) setCredentialsReady(true); });
+    return () => { active = false; };
+  }, []);
 
   const openProject = async (snapshot: WorkspaceSnapshot) => {
     await saveWorkspace(snapshot, false);
@@ -17,6 +25,7 @@ export function App() {
     setEditing(true);
   };
 
+  if (!credentialsReady) return <div className="app-startup-screen" role="status" aria-live="polite"><strong>Nila Website Builder</strong><span>Preparing your local workspace…</span></div>;
   if (!editing) return <ProjectDashboard onOpen={openProject} />;
 
   return (
