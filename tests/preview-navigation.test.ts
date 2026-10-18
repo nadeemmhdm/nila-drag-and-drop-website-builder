@@ -5,15 +5,28 @@ import { createDefaultPageSeo } from '../src/seo/defaults';
 import { makeWorkspace } from './fixture';
 
 describe('sandbox preview navigation', () => {
-  it('renders page-aware hamburger navigation for semantic navbar sections', () => {
+  it('renders the navbar links configured in the section even when the project has one page', () => {
     const workspace = makeWorkspace();
     workspace.pages[0].nodes = SECTION_PRESETS.find((preset) => preset.id === 'navbar-clean')!.build();
-    workspace.pages.push({ id:'about', name:'About', slug:'about', isHome:false, nodes:SECTION_PRESETS.find((preset)=>preset.id==='hero-split')!.build(), seo:createDefaultPageSeo('About') });
     const html = generatePreviewDocument({ projectName:workspace.name, pages:workspace.pages, assets:[], fonts:[], seo:workspace.seo }, workspace.pages[0].id);
     expect(html).toContain('preview-nav-toggle');
     expect(html).toContain('preview-nav-links');
-    expect(html).toContain('About');
+    expect(html).toContain('Features');
+    expect(html).toContain('Pricing');
+    expect(html).toContain('Contact');
+    expect(html).toContain('Get started');
     expect(html).toContain('@media(max-width:900px)');
     expect(html).toContain("nav.classList.toggle('open')");
+  });
+
+  it('falls back to project pages when a semantic navbar has no configured links', () => {
+    const workspace = makeWorkspace();
+    const navbar = SECTION_PRESETS.find((preset) => preset.id === 'navbar-clean')!.build()[0];
+    const stripLinks = (node: typeof navbar): typeof navbar => ({ ...node, children: node.children.map((child) => ({ ...child, children: child.children.filter((nested) => nested.type !== 'link' && nested.type !== 'button') })) });
+    workspace.pages[0].nodes = [stripLinks(navbar)];
+    workspace.pages.push({ id:'about', name:'About', slug:'about', isHome:false, nodes:[], seo:createDefaultPageSeo('About') });
+    const html = generatePreviewDocument({ projectName:workspace.name, pages:workspace.pages, assets:[], fonts:[], seo:workspace.seo }, workspace.pages[0].id);
+    expect(html).toContain('About');
+    expect(html).toContain('data-nav-page="about"');
   });
 });
